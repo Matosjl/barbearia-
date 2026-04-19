@@ -1,0 +1,3 @@
+duvidas WaSender
+Buscar se o Wasender, consegue ler o áudio
+Se ele consegue se quando o cliente responder ele transfere da aba principal para uma segundaria
