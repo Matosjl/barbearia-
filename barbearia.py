@@ -4,6 +4,12 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import time
+from datetime import datetime, timedelta, timezone
+
+def obter_data_brasil():
+    # Cria o fuso horário de Brasília (UTC-3)
+    fuso_br = timezone(timedelta(hours=-3))
+    return datetime.now(fuso_br)
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Barber Pro Luxury", layout="wide", page_icon="💈")
@@ -94,6 +100,7 @@ def carregar_dados(query):
     conn = conectar_banco(); df = pd.read_sql_query(query, conn); conn.close()
     return df
 
+
 def registrar_log(acao, detalhes):
     conn = conectar_banco(); cursor = conn.cursor()
     horario = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -103,16 +110,18 @@ def registrar_log(acao, detalhes):
 # --- MODAIS (DIALOGS) ---
 @st.dialog("📅 Novo Agendamento")
 def modal_agendamento():
+    # Pega a data e hora atual de Brasília
+    agora_brasil = obter_data_brasil()
+    
     st.markdown("### ✂️ Detalhes do Horário")
-    st.write("Preencha as informações para reservar o horário na agenda.")
-    
     c1, c2 = st.columns(2)
-    # Data e Hora com ícones e labels claros
-    data_sel = c1.date_input("📅 Data", min_value=datetime.now())
-    hora_sel = c2.time_input("⏰ Horário")
     
-    # Cliente e Serviço
-    cli = st.text_input("👤 Nome do Cliente", placeholder="Ex: Matheus Matos")
+    # Agora o min_value será o dia 18 (hoje no Brasil)
+    data_sel = c1.date_input("📅 Data", min_value=agora_brasil.date())
+    hora_sel = c2.time_input("⏰ Horário", value=agora_brasil.time())
+    
+    cli = st.text_input("👤 Nome do Cliente")
+    # ... resto do código igual ...
     
     df_servs = carregar_dados("SELECT nome FROM servicos")
     serv_list = df_servs['nome'].tolist() if not df_servs.empty else ["Nenhum cadastrado"]
