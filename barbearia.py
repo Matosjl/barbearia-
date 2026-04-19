@@ -12,7 +12,7 @@ def obter_data_brasil():
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Barber Pro Luxury", layout="wide", page_icon="💈")
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 # --- CSS PERSONALIZADO ---
 st.markdown("""
@@ -39,7 +39,6 @@ def criar_tabelas():
     conn = conectar_banco(); cursor = conn.cursor()
     cursor.execute('CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, login TEXT UNIQUE, senha TEXT, nome_barbearia TEXT)')
     cursor.execute('CREATE TABLE IF NOT EXISTS servicos (id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER, nome TEXT, preco REAL)')
-    # NOVA TABELA DE BARBEIROS
     cursor.execute('CREATE TABLE IF NOT EXISTS equipe (id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER, nome TEXT)')
     cursor.execute('CREATE TABLE IF NOT EXISTS historico_vendas (id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER, data TEXT, horario TEXT, cliente TEXT, servico TEXT, barbeiro TEXT, valor_total REAL, metodo_pagamento TEXT)')
     cursor.execute('CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER, horario TEXT, usuario TEXT, acao TEXT, detalhes TEXT)')
@@ -84,12 +83,14 @@ def modal_agendamento():
     df_servs = carregar_dados("SELECT nome FROM servicos WHERE usuario_id = ?", (st.session_state.user_id,))
     serv_list = df_servs['nome'].tolist() if not df_servs.empty else ["Nenhum"]
     serv_sel = st.selectbox("💇‍♂️ Serviço", serv_list)
-    if st.button("CONFIRMAR"):
-        conn = conectar_banco(); cur = conn.cursor()
-        cur.execute("INSERT INTO agendamentos (usuario_id, data, horario, cliente, servico) VALUES (?,?,?,?,?)",
-                    (st.session_state.user_id, data_sel.strftime("%Y-%m-%d"), hora_sel.strftime("%H:%M"), cli, serv_sel))
-        conn.commit(); conn.close()
-        st.success("✅ Agendado!"); time.sleep(1); st.rerun()
+    if st.button("CONFIRMAR AGENDAMENTO"):
+        if cli:
+            conn = conectar_banco(); cur = conn.cursor()
+            cur.execute("INSERT INTO agendamentos (usuario_id, data, horario, cliente, servico) VALUES (?,?,?,?,?)",
+                        (st.session_state.user_id, data_sel.strftime("%Y-%m-%d"), hora_sel.strftime("%H:%M"), cli, serv_sel))
+            conn.commit(); conn.close()
+            registrar_log("AGENDAMENTO", f"Cliente {cli} para {data_sel}")
+            st.success("✅ Agendado!"); time.sleep(1); st.rerun()
 
 @st.dialog("Finalizar Atendimento")
 def checkout():
@@ -102,7 +103,7 @@ def checkout():
         cursor.execute("INSERT INTO historico_vendas (usuario_id, data, horario, cliente, servico, barbeiro, valor_total, metodo_pagamento) VALUES (?,?,?,?,?,?,?,?)",
                        (st.session_state.user_id, agora.strftime("%Y-%m-%d"), agora.strftime("%H:%M:%S"), dados['cliente'], dados['servico'], dados['barbeiro'], dados['total'], metodo))
         conn.commit(); conn.close()
-        registrar_log("VENDA", f"{dados['servico']} - {dados['barbeiro']}")
+        registrar_log("VENDA", f"{dados['servico']} - {dados['barbeiro']} - R${dados['total']}")
         st.success("Venda registrada!"); st.balloons(); time.sleep(1); st.rerun()
 
 # --- TELA DE ACESSO ---
@@ -125,14 +126,15 @@ def tela_acesso():
                         st.session_state.nome_loja = user[1]
                         st.session_state.login = u
                         st.rerun()
-                    else: st.error("Incorreto")
+                    else: st.error("Usuário ou senha incorretos")
             with tab_c:
                 new_u = st.text_input("Usuário Desejado", key="c_u")
                 new_n = st.text_input("Nome da Barbearia", key="c_n")
                 new_p = st.text_input("Senha", type="password", key="c_p")
-                if st.button("CADASTRAR"):
-                    if cadastrar_usuario(new_u, new_p, new_n): st.success("Criado! Faça Login.")
-                    else: st.error("Erro ou usuário já existe.")
+                if st.button("CADASTRAR MINHA CONTA"):
+                    if new_u and new_p and new_n:
+                        if cadastrar_usuario(new_u, new_p, new_n): st.success("✅ Criado! Faça Login.")
+                        else: st.error("❌ Erro ou usuário já existe.")
         return False
     return True
 
@@ -143,7 +145,6 @@ if tela_acesso():
         st.markdown(f"### 👤 {st.session_state.nome_loja}")
         if st.button("📅 Novo Agendamento", use_container_width=True): modal_agendamento()
         st.divider()
-        # SEU CONTATO DE VOLTA
         st.link_button("🟢 Suporte WhatsApp", "https://wa.me/555181521264", use_container_width=True)
         if st.button("🚪 Sair", use_container_width=True): 
             st.session_state.autenticado = False
@@ -159,109 +160,101 @@ if tela_acesso():
         c1, c2 = st.columns(2)
         with c1:
             nome_c = st.text_input("Nome do Cliente")
-            lista_barbeiros = df_b['nome'].tolist() if not df_b.empty else ["Cadastre barbeiros"]
-            barb = st.selectbox("Barbeiro", lista_barbeiros)
+            lista_barbeiros = df_b['nome'].tolist() if not df_b.empty else ["Cadastre barbeiros em Ajustes"]
+            barb = st.selectbox("Barbeiro Responsável", lista_barbeiros)
         with c2:
             if not df_s.empty:
-                serv_n = st.selectbox("Serviço", df_s['nome'].tolist())
+                serv_n = st.selectbox("Serviço Realizado", df_s['nome'].tolist())
                 v_base = df_s[df_s['nome'] == serv_n]['preco'].iloc[0]
-                adicional = st.number_input("Adicional R$", min_value=0.0)
-                if st.button("FECHAR CONTA"):
+                adicional = st.number_input("Adicional/Extra R$", min_value=0.0)
+                if st.button("FINALIZAR E RECEBER"):
                     if not df_b.empty:
                         st.session_state.dados_venda = {"cliente": nome_c, "servico": serv_n, "barbeiro": barb, "total": v_base + adicional}
                         checkout()
-                    else: st.error("Cadastre um barbeiro primeiro!")
-            else: st.warning("Cadastre serviços primeiro.")
+                    else: st.error("Você precisa cadastrar pelo menos um barbeiro na aba Ajustes!")
+            else: st.warning("Cadastre seus serviços e preços na aba Ajustes primeiro.")
 
-    with t2: # PAINEL (TABELAS QUE SUMIRAM)
+    with t2: # PAINEL
         df_v = carregar_dados("SELECT * FROM historico_vendas WHERE usuario_id = ?", (st.session_state.user_id,))
         if not df_v.empty:
             m1, m2, m3 = st.columns(3)
             m1.metric("FATURAMENTO", f"R$ {df_v['valor_total'].sum():.2f}")
-            m2.metric("SERVIÇOS", len(df_v))
+            m2.metric("TOTAL SERVIÇOS", len(df_v))
             m3.metric("TICKET MÉDIO", f"R$ {df_v['valor_total'].mean():.2f}")
             
             st.markdown("### 💰 Fechamento por Barbeiro e Método")
-            # ESSA É A TABELA QUE VOCÊ QUERIA DE VOLTA
             df_met = df_v.pivot_table(index='barbeiro', columns='metodo_pagamento', values='valor_total', aggfunc='sum', fill_value=0)
             df_met['TOTAL'] = df_met.sum(axis=1)
             st.dataframe(df_met.style.format("R$ {:.2f}"), use_container_width=True)
             
             st.plotly_chart(px.bar(df_v.groupby('barbeiro')['valor_total'].sum().reset_index(), x='barbeiro', y='valor_total', title="Faturamento por Barbeiro", template="plotly_dark", color_discrete_sequence=['#D4AF37']), use_container_width=True)
-        else: st.info("Sem vendas ainda.")
+        else: st.info("Sem vendas registradas neste perfil.")
     
-    with t3: # ANUAL (CORRIGIDO)
+    with t3: # ANUAL
         st.subheader("📈 Evolução Financeira Anual")
-        # Busca todas as vendas do usuário logado
         df_an = carregar_dados("SELECT data, valor_total FROM historico_vendas WHERE usuario_id = ?", (st.session_state.user_id,))
-        
         if not df_an.empty:
-            # Converte a coluna data para o formato datetime do pandas
             df_an['data'] = pd.to_datetime(df_an['data'])
-            # Cria uma coluna com o nome do mês ou número do mês
-            df_an['Mes'] = df_an['data'].dt.strftime('%m (%b)') 
-            
-            # Agrupa por mês somando o valor total
-            evolucao = df_an.groupby('Mes')['valor_total'].sum().reset_index()
-            # Ordena para o gráfico não ficar bagunçado
-            evolucao = evolucao.sort_values('Mes')
-
-            # Cria o gráfico de linha
-            fig_anual = px.line(
-                evolucao, 
-                x='Mes', 
-                y='valor_total', 
-                title="Faturamento Mensal",
-                markers=True, 
-                template="plotly_dark", 
-                color_discrete_sequence=['#D4AF37']
-            )
-            
-            # Ajusta o layout do gráfico
-            fig_anual.update_layout(yaxis_title="Total R$", xaxis_title="Mês")
+            df_an['Mes_Num'] = df_an['data'].dt.month
+            df_an['Mes'] = df_an['data'].dt.strftime('%b')
+            evolucao = df_an.groupby(['Mes_Num', 'Mes'])['valor_total'].sum().reset_index().sort_values('Mes_Num')
+            fig_anual = px.line(evolucao, x='Mes', y='valor_total', markers=True, template="plotly_dark", color_discrete_sequence=['#D4AF37'])
             st.plotly_chart(fig_anual, use_container_width=True)
-            
-            # Tabela comparativa logo abaixo
-            st.markdown("### 📋 Resumo por Mês")
-            st.table(evolucao.rename(columns={'valor_total': 'Total Fat.'}).set_index('Mes'))
-        else:
-            st.info("Ainda não há dados suficientes para gerar o gráfico anual. Registre algumas vendas primeiro!")
+            st.table(evolucao[['Mes', 'valor_total']].rename(columns={'valor_total': 'Faturamento R$'}))
+        else: st.info("Dados insuficientes para gerar o gráfico anual.")
 
-    with t4: # AJUSTES (GESTÃO DE BARBEIROS E SERVIÇOS)
+    with t4: # AJUSTES
         col_s, col_b = st.columns(2)
         
-        with col_s:
-            st.subheader("✂️ Serviços")
-            ns = st.text_input("Novo Serviço")
-            np = st.number_input("Preço R$", min_value=0.0)
-            if st.button("ADICIONAR SERVIÇO"):
-                if ns:
-                    conn = conectar_banco(); cur = conn.cursor()
-                    cur.execute("INSERT INTO servicos (usuario_id, nome, preco) VALUES (?,?,?)", (st.session_state.user_id, ns, np))
-                    conn.commit(); conn.close(); st.rerun()
+        with col_s: # COLUNA DE SERVIÇOS
+            st.markdown("### ✂️ Gestão de Serviços")
+            with st.expander("Adicionar Novo Serviço"):
+                ns = st.text_input("Nome do Serviço")
+                np = st.number_input("Preço R$", min_value=0.0)
+                if st.button("SALVAR SERVIÇO"):
+                    if ns:
+                        conn = conectar_banco(); cur = conn.cursor()
+                        cur.execute("INSERT INTO servicos (usuario_id, nome, preco) VALUES (?,?,?)", (st.session_state.user_id, ns, np))
+                        conn.commit(); conn.close(); st.rerun()
             
             df_lista_s = carregar_dados("SELECT id, nome, preco FROM servicos WHERE usuario_id = ?", (st.session_state.user_id,))
-            st.dataframe(df_lista_s[["nome", "preco"]], use_container_width=True)
-            del_s = st.selectbox("Excluir Serviço", [""] + df_lista_s['nome'].tolist())
-            if st.button("EXCLUIR SERVIÇO"):
+            st.dataframe(df_lista_s[["nome", "preco"]], use_container_width=True, hide_index=True)
+            del_s = st.selectbox("Selecione para excluir", [""] + df_lista_s['nome'].tolist(), key="del_s")
+            if st.button("❌ EXCLUIR SERVIÇO"):
                 conn = conectar_banco(); cur = conn.cursor(); cur.execute("DELETE FROM servicos WHERE nome=? AND usuario_id=?", (del_s, st.session_state.user_id)); conn.commit(); conn.close(); st.rerun()
 
-        with col_b:
-            st.subheader("🧔 Equipe de Barbeiros")
-            nb = st.text_input("Nome do Barbeiro")
-            if st.button("ADICIONAR BARBEIRO"):
-                if nb:
-                    conn = conectar_banco(); cur = conn.cursor()
-                    cur.execute("INSERT INTO equipe (usuario_id, nome) VALUES (?,?)", (st.session_state.user_id, nb))
-                    conn.commit(); conn.close(); st.rerun()
+        with col_b: # COLUNA DE EQUIPE E PERFIL
+            st.markdown("### 🧔 Equipe e Perfil")
+            with st.expander("Adicionar Novo Barbeiro"):
+                nb = st.text_input("Nome do Barbeiro")
+                if st.button("SALVAR BARBEIRO"):
+                    if nb:
+                        conn = conectar_banco(); cur = conn.cursor()
+                        cur.execute("INSERT INTO equipe (usuario_id, nome) VALUES (?,?)", (st.session_state.user_id, nb))
+                        conn.commit(); conn.close(); st.rerun()
             
             df_equipe = carregar_dados("SELECT id, nome FROM equipe WHERE usuario_id = ?", (st.session_state.user_id,))
-            st.dataframe(df_equipe[["nome"]], use_container_width=True)
-            del_b = st.selectbox("Excluir Barbeiro", [""] + df_equipe['nome'].tolist())
-            if st.button("EXCLUIR BARBEIRO"):
+            st.dataframe(df_equipe[["nome"]], use_container_width=True, hide_index=True)
+            del_b = st.selectbox("Selecione para excluir", [""] + df_equipe['nome'].tolist(), key="del_b")
+            if st.button("❌ EXCLUIR BARBEIRO"):
                 conn = conectar_banco(); cur = conn.cursor(); cur.execute("DELETE FROM equipe WHERE nome=? AND usuario_id=?", (del_b, st.session_state.user_id)); conn.commit(); conn.close(); st.rerun()
+            
+            st.divider()
+            st.markdown("### 🔐 Segurança")
+            novo_login = st.text_input("Alterar Nome de Usuário", value=st.session_state.login)
+            if st.button("ATUALIZAR LOGIN"):
+                if novo_login:
+                    try:
+                        conn = conectar_banco(); cur = conn.cursor()
+                        cur.execute("UPDATE usuarios SET login = ? WHERE id = ?", (novo_login, st.session_state.user_id))
+                        conn.commit(); conn.close()
+                        st.session_state.login = novo_login
+                        st.success("Usuário atualizado!")
+                        time.sleep(1); st.rerun()
+                    except: st.error("Nome já em uso.")
 
-    with t5:
+    with t5: # LOGS
+        st.subheader("🕵️ Histórico de Atividades")
         st.dataframe(carregar_dados("SELECT horario, acao, detalhes FROM logs WHERE usuario_id = ? ORDER BY id DESC", (st.session_state.user_id,)), use_container_width=True)
 
-    st.caption(f"💎 Barber Pro Luxury v{__version__} | SaaS Ready")
+    st.caption(f"💎 Barber Pro Luxury v{__version__} | SaaS Professional Edition")
