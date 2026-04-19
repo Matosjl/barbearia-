@@ -1,0 +1,17 @@
+# Ignorar o ambiente virtual
+.venv/
+
+# Ignorar pastas automáticas do Python
+__pycache__/
+*.pyc
+
+# Ignorar todas as bases de dados (ficheiros .db)
+*.db
+
+# Ignorar ficheiros de texto e rascunhos (.txt e .md)
+*.txt
+*.md
+
+# Ignorar ficheiros específicos que não queres
+Eu.py
+Tu.py
