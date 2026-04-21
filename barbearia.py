@@ -5,10 +5,11 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta, timezone
 import time
+
 import requests
 
 # --- CONFIGURAÇÃO WHATSAPP ---
-URL_API_GLOBAL = "http://localhost:8080"
+URL_API_GLOBAL =  "https://santa-pentagram-crazed.ngrok-free.dev"
 TOKEN_GLOBAL = "12345"
 INSTANCIA_GLOBAL = "meu_bot"
 
