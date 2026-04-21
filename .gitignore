@@ -14,4 +14,4 @@ __pycache__/
 
 # Ignorar ficheiros específicos que não queres
 Eu.py
-Tu.py
+Tu.pygit push origin main

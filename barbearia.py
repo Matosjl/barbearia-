@@ -9,7 +9,7 @@ import requests
 
 # --- CONFIGURAÇÃO WHATSAPP ---
 URL_API_GLOBAL = "http://localhost:8080"
-TOKEN_GLOBAL = "COLE_AQUI_SEU_TOKEN_GLOBAL"
+TOKEN_GLOBAL = "12345"
 INSTANCIA_GLOBAL = "meu_bot"
 
 def enviar_mensagem_api(numero, mensagem):
@@ -236,10 +236,48 @@ else:
             modal_pagamento()
 
     # 2. AGENDA
+        # 2. AGENDA (MODIFICADO PARA ENVIAR WHATSAPP)
     with t[1]:
         st.subheader("Clientes Agendados")
-        df_age = carregar_dados("SELECT horario, cliente, telefone, status FROM agendamentos WHERE usuario_id=? AND status='Pendente'", (st.session_state.user_id,))
-        st.dataframe(df_age, width='stretch')
+        # Carrega dados incluindo o telefone
+        df_age = carregar_dados("SELECT id, horario, cliente, telefone, status FROM agendamentos WHERE usuario_id=? AND status='Pendente'", (st.session_state.user_id,))
+        
+        st.dataframe(df_age[['horario', 'cliente', 'telefone', 'status']], width='stretch', hide_index=True)
+        
+        st.divider()
+        st.subheader("📤 Enviar Lembrete via WhatsApp")
+        
+        if not df_age.empty:
+            c1, c2 = st.columns([2, 1])
+            # Seleciona o cliente
+            cliente_select = c1.selectbox("Selecione o Cliente", df_age['cliente'].tolist())
+            
+            # Pega os dados do cliente selecionado
+            dados_cliente = df_age[df_age['cliente'] == cliente_select].iloc[0]
+            telefone_cliente = dados_cliente['telefone']
+            horario_cliente = dados_cliente['horario']
+            
+            # Monta a mensagem padrão
+            msg_template = f"Olá {cliente_select}, tudo bem? Aqui é da {st.session_state.nome_loja}. Passando para confirmar seu agendamento hoje às {horario_cliente}. Estamos te esperando!"
+            
+            msg_final = st.text_area("Mensagem", value=msg_template, height=100)
+            
+            if c2.button("ENVIAR MENSAGEM", use_container_width=True):
+                if telefone_cliente:
+                    # Chama a função de envio
+                    with st.spinner("Enviando..."):
+                        status_envio = enviar_mensagem_api(telefone_cliente, msg_final)
+                    
+                    if status_envio:
+                        st.success(f"Mensagem enviada com sucesso para {cliente_select}!")
+                        registrar_log(st.session_state.user_id, "WhatsApp", f"Enviado para {cliente_select}")
+                    else:
+                        st.error("Falha ao enviar mensagem. Verifique se a API está online e o Token correto.")
+                else:
+                    st.warning("Este cliente não possui telefone cadastrado.")
+        else:
+            st.info("Nenhum agendamento pendente para enviar mensagens.")
+
 
     # 3. FINANCEIRO
     with t[2]:
