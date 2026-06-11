@@ -79,18 +79,49 @@ router.get('/', rbac('owner', 'manager'), asyncH(async (req, res) => {
 // ------------------------------------------------ GET /dashboard/barber (barbeiro)
 router.get('/barber', rbac('barber'), asyncH(async (req, res) => {
   const data = await withTenant(req.auth, async (c) => {
-    // RLS já restringe tudo ao próprio barbeiro
+    // Perfil de remuneração do barbeiro logado
+    const bRow = (await c.query(
+      'SELECT remuneration_type, fixed_salary FROM barbers WHERE id=$1',
+      [req.auth.barberId],
+    )).rows[0] || {};
+    const remType = bRow.remuneration_type || 'comissionado';
+    const fixedSalary = Number(bRow.fixed_salary || 0);
+
+    // Métricas base — RLS restringe tudo ao próprio barbeiro
     const today = await c.query(
       `SELECT
          (SELECT COUNT(*) FROM appointments WHERE status='completed'
             AND (completed_at AT TIME ZONE 'America/Sao_Paulo')::date=${TZ}) AS services_today,
          (SELECT COALESCE(SUM(amount),0) FROM commissions WHERE created_at::date=${TZ}) AS commission_today,
-         (SELECT COALESCE(SUM(amount),0) FROM commissions WHERE reference_month=date_trunc('month',now())::date) AS commission_month`,
+         (SELECT COALESCE(SUM(amount),0) FROM commissions
+            WHERE reference_month=date_trunc('month',now())::date) AS commission_month,
+         (SELECT COALESCE(SUM(ft.amount),0)
+            FROM financial_transactions ft JOIN appointments a ON a.id=ft.appointment_id
+           WHERE ft.direction='out' AND ft.category='supplies' AND a.status='completed'
+             AND (a.completed_at AT TIME ZONE 'America/Sao_Paulo')::date=${TZ}) AS supplies_today,
+         (SELECT COALESCE(SUM(ft.amount),0)
+            FROM financial_transactions ft JOIN appointments a ON a.id=ft.appointment_id
+           WHERE ft.direction='out' AND ft.category='supplies' AND a.status='completed'
+             AND (a.completed_at AT TIME ZONE 'America/Sao_Paulo')::date
+                 >= date_trunc('month',now())::date) AS supplies_month,
+         (SELECT COALESCE(SUM(ft.amount),0)
+            FROM financial_transactions ft JOIN appointments a ON a.id=ft.appointment_id
+           WHERE ft.direction='out' AND ft.category='card_fee' AND a.status='completed'
+             AND (a.completed_at AT TIME ZONE 'America/Sao_Paulo')::date=${TZ}) AS card_fee_today,
+         (SELECT COALESCE(SUM(ft.amount),0)
+            FROM financial_transactions ft JOIN appointments a ON a.id=ft.appointment_id
+           WHERE ft.direction='out' AND ft.category='card_fee' AND a.status='completed'
+             AND (a.completed_at AT TIME ZONE 'America/Sao_Paulo')::date
+                 >= date_trunc('month',now())::date) AS card_fee_month`,
     );
-    const receivable = await c.query('SELECT COALESCE(SUM(total_to_receive),0) AS to_receive FROM vw_barber_receivables');
+
+    const receivable = await c.query(
+      'SELECT COALESCE(SUM(total_to_receive),0) AS to_receive FROM vw_barber_receivables',
+    );
     const upcoming = await c.query(
       `SELECT a.id, a.starts_at, a.status, cu.name AS customer,
-              (SELECT string_agg(ai.service_name, ', ') FROM appointment_items ai WHERE ai.appointment_id=a.id) AS services
+              (SELECT string_agg(ai.service_name, ', ')
+                 FROM appointment_items ai WHERE ai.appointment_id=a.id) AS services
          FROM appointments a JOIN customers cu ON cu.id=a.customer_id
         WHERE a.status IN ('scheduled','confirmed','in_progress') AND a.starts_at >= now()
         ORDER BY a.starts_at LIMIT 10`,
@@ -100,13 +131,63 @@ router.get('/barber', rbac('barber'), asyncH(async (req, res) => {
          FROM appointments a JOIN customers cu ON cu.id=a.customer_id
         WHERE a.status='completed' ORDER BY a.completed_at DESC LIMIT 20`,
     );
+
+    const t = today.rows[0];
+    const commToday  = Number(t.commission_today);
+    const commMonth  = Number(t.commission_month);
+    const supToday   = Number(t.supplies_today);
+    const supMonth   = Number(t.supplies_month);
+    const feeToday   = Number(t.card_fee_today);
+    const feeMonth   = Number(t.card_fee_month);
+    const toReceive  = Number(receivable.rows[0].to_receive);
+    const servToday  = Number(t.services_today);
+
+    // Dono: recebe 100% da receita; lucro = comissão - taxas - insumos
+    if (remType === 'dono') {
+      const custosHoje = feeToday + supToday;
+      const custosMes  = feeMonth + supMonth;
+      return {
+        remunerationType: 'dono',
+        servicesToday:   servToday,
+        ganhoHoje:       commToday,
+        custosHoje,
+        lucroRealHoje:   Math.max(0, commToday - custosHoje),
+        ganhoMes:        commMonth,
+        custosMes,
+        lucroRealMes:    Math.max(0, commMonth - custosMes),
+        toReceive,
+        upcoming:        upcoming.rows,
+        history:         history.rows,
+      };
+    }
+
+    // Fixo: sem comissão por atendimento; salário fixo mensal
+    if (remType === 'fixo') {
+      return {
+        remunerationType: 'fixo',
+        servicesToday:    servToday,
+        fixedSalary,
+        commissionToday:  0,
+        commissionMonth:  0,
+        toReceive,
+        upcoming:         upcoming.rows,
+        history:          history.rows,
+      };
+    }
+
+    // Comissionado / Misto: mostra comissão + opcionalmente salário fixo
     return {
-      servicesToday: Number(today.rows[0].services_today),
-      commissionToday: Number(today.rows[0].commission_today),
-      commissionMonth: Number(today.rows[0].commission_month),
-      toReceive: Number(receivable.rows[0].to_receive),
-      upcoming: upcoming.rows,
-      history: history.rows,
+      remunerationType:  remType,
+      servicesToday:     servToday,
+      commissionToday:   commToday,
+      commissionMonth:   commMonth,
+      ...(remType === 'misto' ? { fixedSalary } : {}),
+      lucroHoje:         Math.max(0, commToday - supToday),
+      lucroMes:          Math.max(0, commMonth - supMonth),
+      custosHoje:        supToday,
+      toReceive,
+      upcoming:          upcoming.rows,
+      history:           history.rows,
     };
   });
   res.json(data);

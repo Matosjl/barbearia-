@@ -18,7 +18,9 @@ router.get('/', asyncH(async (req, res) => {
   const rows = await withTenant(req.auth, (c) =>
     c.query(
       `SELECT id, display_name, phone, photo_url, is_active,
-              default_service_commission_pct, default_product_commission_pct
+              default_service_commission_pct, default_product_commission_pct,
+              remuneration_type, fixed_salary,
+              commission_on_courtesy, card_fee_deducted_from, supplies_deducted_from
          FROM barbers WHERE deleted_at IS NULL ORDER BY display_name`,
     ).then((r) => r.rows),
   );
@@ -38,6 +40,11 @@ router.post(
       password: z.string().min(6).optional(),
       defaultServiceCommissionPct: z.number().min(0).max(100).optional(),
       defaultProductCommissionPct: z.number().min(0).max(100).optional(),
+      remunerationType: z.enum(['dono', 'comissionado', 'fixo', 'misto']).optional(),
+      fixedSalary: z.number().min(0).optional(),
+      commissionOnCourtesy: z.boolean().optional(),
+      cardFeeDeductedFrom: z.enum(['barber', 'barbershop']).optional(),
+      suppliesDeductedFrom: z.enum(['barber', 'barbershop']).optional(),
       serviceIds: z.array(z.string().uuid()).optional(),
     }),
   }),
@@ -58,11 +65,17 @@ router.post(
           [user.rows[0].id, bsid]);
         const barber = await c.query(
           `INSERT INTO barbers(barbershop_id, user_id, display_name, phone,
-                               default_service_commission_pct, default_product_commission_pct)
-           VALUES ($1,$2,$3,$4, COALESCE($5,0), COALESCE($6,0))
-           RETURNING id, display_name, default_service_commission_pct`,
+                               default_service_commission_pct, default_product_commission_pct,
+                               remuneration_type, fixed_salary,
+                               commission_on_courtesy, card_fee_deducted_from, supplies_deducted_from)
+           VALUES ($1,$2,$3,$4, COALESCE($5,0), COALESCE($6,0),
+                   COALESCE($7,'comissionado'), COALESCE($8,0),
+                   COALESCE($9,false), COALESCE($10,'barbershop'), COALESCE($11,'barbershop'))
+           RETURNING id, display_name, default_service_commission_pct, remuneration_type`,
           [bsid, user.rows[0].id, b.displayName, b.phone || null,
-            b.defaultServiceCommissionPct ?? null, b.defaultProductCommissionPct ?? null],
+            b.defaultServiceCommissionPct ?? null, b.defaultProductCommissionPct ?? null,
+            b.remunerationType ?? null, b.fixedSalary ?? null,
+            b.commissionOnCourtesy ?? null, b.cardFeeDeductedFrom ?? null, b.suppliesDeductedFrom ?? null],
         );
         if (b.serviceIds?.length) {
           for (const sid of b.serviceIds) {
@@ -81,11 +94,17 @@ router.post(
     const row = await withTenant(req.auth, async (c) => {
       const ins = await c.query(
         `INSERT INTO barbers(barbershop_id, display_name, phone,
-                             default_service_commission_pct, default_product_commission_pct)
-         VALUES ($1,$2,$3, COALESCE($4,0), COALESCE($5,0))
-         RETURNING id, display_name, default_service_commission_pct`,
+                             default_service_commission_pct, default_product_commission_pct,
+                             remuneration_type, fixed_salary,
+                             commission_on_courtesy, card_fee_deducted_from, supplies_deducted_from)
+         VALUES ($1,$2,$3, COALESCE($4,0), COALESCE($5,0),
+                 COALESCE($6,'comissionado'), COALESCE($7,0),
+                 COALESCE($8,false), COALESCE($9,'barbershop'), COALESCE($10,'barbershop'))
+         RETURNING id, display_name, default_service_commission_pct, remuneration_type`,
         [bsid, b.displayName, b.phone || null,
-          b.defaultServiceCommissionPct ?? null, b.defaultProductCommissionPct ?? null],
+          b.defaultServiceCommissionPct ?? null, b.defaultProductCommissionPct ?? null,
+          b.remunerationType ?? null, b.fixedSalary ?? null,
+          b.commissionOnCourtesy ?? null, b.cardFeeDeductedFrom ?? null, b.suppliesDeductedFrom ?? null],
       );
       const barber = ins.rows[0];
       if (b.serviceIds?.length) {
@@ -113,6 +132,11 @@ router.patch(
       defaultServiceCommissionPct: z.number().min(0).max(100).optional(),
       defaultProductCommissionPct: z.number().min(0).max(100).optional(),
       isActive: z.boolean().optional(),
+      remunerationType: z.enum(['dono', 'comissionado', 'fixo', 'misto']).optional(),
+      fixedSalary: z.number().min(0).optional(),
+      commissionOnCourtesy: z.boolean().optional(),
+      cardFeeDeductedFrom: z.enum(['barber', 'barbershop']).optional(),
+      suppliesDeductedFrom: z.enum(['barber', 'barbershop']).optional(),
     }),
   }),
   asyncH(async (req, res) => {
@@ -124,11 +148,20 @@ router.patch(
            phone=COALESCE($3,phone),
            default_service_commission_pct=COALESCE($4,default_service_commission_pct),
            default_product_commission_pct=COALESCE($5,default_product_commission_pct),
-           is_active=COALESCE($6,is_active)
+           is_active=COALESCE($6,is_active),
+           remuneration_type=COALESCE($7,remuneration_type),
+           fixed_salary=COALESCE($8,fixed_salary),
+           commission_on_courtesy=COALESCE($9,commission_on_courtesy),
+           card_fee_deducted_from=COALESCE($10,card_fee_deducted_from),
+           supplies_deducted_from=COALESCE($11,supplies_deducted_from)
          WHERE id=$1 AND deleted_at IS NULL
-         RETURNING id, display_name, is_active`,
+         RETURNING id, display_name, is_active, remuneration_type,
+                   default_service_commission_pct, fixed_salary,
+                   commission_on_courtesy, card_fee_deducted_from, supplies_deducted_from`,
         [req.params.id, b.displayName ?? null, b.phone ?? null,
-          b.defaultServiceCommissionPct ?? null, b.defaultProductCommissionPct ?? null, b.isActive ?? null],
+          b.defaultServiceCommissionPct ?? null, b.defaultProductCommissionPct ?? null,
+          b.isActive ?? null, b.remunerationType ?? null, b.fixedSalary ?? null,
+          b.commissionOnCourtesy ?? null, b.cardFeeDeductedFrom ?? null, b.suppliesDeductedFrom ?? null],
       ).then((r) => r.rows[0]),
     );
     if (!row) throw notFound('Barbeiro não encontrado');

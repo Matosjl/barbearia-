@@ -64,7 +64,7 @@ router.post(
     body: z.object({
       barberId: z.string().uuid(),
       serviceIds: z.array(z.string().uuid()).min(1),
-      startsAt: z.string().datetime(),
+      startsAt: z.string().datetime({ local: true, offset: true }),
       customerId: z.string().uuid().optional(),
       idempotencyKey: z.string().optional(),
     }),
@@ -165,7 +165,7 @@ router.patch('/:id/cancel',
 router.patch('/:id/reschedule',
   validate({
     params: z.object({ id: z.string().uuid() }),
-    body: z.object({ startsAt: z.string().datetime(), barberId: z.string().uuid().optional() }),
+    body: z.object({ startsAt: z.string().datetime({ local: true, offset: true }), barberId: z.string().uuid().optional() }),
   }),
   asyncH(async (req, res) => {
     const appt = await withTenant(realCtx(req), (c) =>
@@ -297,22 +297,31 @@ router.patch('/:id/complete',
         [appt.id, 'completed', isCourtesy ? 'free' : method, discount, finalTotal],
       );
 
-      // 1) COMISSÃO por item (respeita pct configurado, congelado no item)
+      // Regra de remuneração do barbeiro (congelada no momento do atendimento)
+      const bCfg = (await c.query(
+        'SELECT remuneration_type, commission_on_courtesy, card_fee_deducted_from, supplies_deducted_from FROM barbers WHERE id=$1',
+        [appt.barber_id],
+      )).rows[0] || {};
+      const remType = bCfg.remuneration_type || 'comissionado';
+      const commOnCourtesy = bCfg.commission_on_courtesy ?? false;
+      const cardFeeFrom = bCfg.card_fee_deducted_from || 'barbershop';
+      const suppliesFrom = bCfg.supplies_deducted_from || 'barbershop';
+
+      // 1) COMISSÃO bruta por item (pct já congelado no item no momento do hold)
       const items = await c.query('SELECT id, unit_price, commission_pct FROM appointment_items WHERE appointment_id=$1', [appt.id]);
-      let totalCommission = 0;
+      let totalGross = 0;
+      const itemComms = [];
       for (const it of items.rows) {
-        const amount = Math.round(Number(it.unit_price) * Number(it.commission_pct)) / 100;
-        totalCommission += amount;
-        await c.query('UPDATE appointment_items SET commission_amount=$2 WHERE id=$1', [it.id, amount]);
-        await c.query(
-          `INSERT INTO commissions(barbershop_id, barber_id, source_type, appointment_item_id,
-                                   base_amount, percentage, amount, status, reference_month)
-           VALUES ($1,$2,'service',$3,$4,$5,$6,'accrued', date_trunc('month', now())::date)`,
-          [bsid, appt.barber_id, it.id, it.unit_price, it.commission_pct, amount],
-        );
+        // fixo: sem comissão; cortesia sem flag: sem comissão
+        let gross = 0;
+        if (remType !== 'fixo' && (!isCourtesy || commOnCourtesy)) {
+          gross = Math.round(Number(it.unit_price) * Number(it.commission_pct)) / 100;
+        }
+        totalGross += gross;
+        itemComms.push({ id: it.id, unitPrice: it.unit_price, pct: it.commission_pct, gross });
       }
 
-      // 2) TAXA DE CARTÃO/método (líquido = bruto - taxa)
+      // 2) TAXA DE CARTÃO
       let cardFee = 0;
       if (!isCourtesy && finalTotal > 0) {
         const fm = await c.query('SELECT fee_percentage FROM payment_methods WHERE barbershop_id=$1 AND method=$2', [bsid, method]);
@@ -338,6 +347,40 @@ router.patch('/:id/complete',
         );
       }
       insumoCost = Math.round(insumoCost * 100) / 100;
+
+      // 4) DEDUÇÕES DO BARBEIRO (taxa/insumos rateados proporcionalmente quando configurado)
+      let barberCardShare = 0, barberSuppliesShare = 0;
+      if (!isCourtesy && totalGross > 0 && finalTotal > 0) {
+        const ratio = totalGross / finalTotal;
+        if (cardFeeFrom === 'barber' && cardFee > 0)
+          barberCardShare = Math.round(cardFee * ratio * 100) / 100;
+        if (suppliesFrom === 'barber' && insumoCost > 0)
+          barberSuppliesShare = Math.round(insumoCost * ratio * 100) / 100;
+      }
+      const totalDeductions = barberCardShare + barberSuppliesShare;
+      const totalCommission = Math.max(0, totalGross - totalDeductions);
+      // Fator de ajuste proporcional aplicado a cada item
+      const netFactor = totalGross > 0 ? totalCommission / totalGross : 0;
+
+      // 5) Persiste itens + comissões com valor LÍQUIDO e snapshot da regra vigente
+      for (const it of itemComms) {
+        const netAmount = Math.round(it.gross * netFactor * 100) / 100;
+        await c.query(
+          `UPDATE appointment_items
+              SET commission_amount=$2, remuneration_type=$3,
+                  card_fee_deducted_from=$4, supplies_deducted_from=$5
+            WHERE id=$1`,
+          [it.id, netAmount, remType, cardFeeFrom, suppliesFrom],
+        );
+        if (netAmount > 0) {
+          await c.query(
+            `INSERT INTO commissions(barbershop_id, barber_id, source_type, appointment_item_id,
+                                     base_amount, percentage, amount, status, reference_month)
+             VALUES ($1,$2,'service',$3,$4,$5,$6,'accrued', date_trunc('month', now())::date)`,
+            [bsid, appt.barber_id, it.id, it.unitPrice, it.pct, netAmount],
+          );
+        }
+      }
 
       // 4) PAGAMENTO (taxa registrada -> net_amount gerado pelo banco) + vínculo ao caixa aberto
       const pay = await c.query(

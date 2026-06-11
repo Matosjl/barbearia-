@@ -25,6 +25,7 @@ const ORDER = [
   '08_relational_hardening.sql',
   '09_product_media.sql',
   '10_indexes.sql',
+  '11_remuneration.sql',
   '03_views.sql',
 ];
 if (process.env.SEED === 'true') ORDER.push('04_seed.sql');

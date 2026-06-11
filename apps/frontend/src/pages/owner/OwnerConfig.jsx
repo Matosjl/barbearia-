@@ -196,14 +196,116 @@ function ServicosSection() {
   );
 }
 
+const REM_LABELS = {
+  dono: 'Dono (100%)',
+  comissionado: 'Comissionado (%)',
+  fixo: 'Salário fixo',
+  misto: 'Fixo + Comissão',
+};
+
+const REM_COLORS = {
+  dono: { bg: '#dbeafe', color: '#1e40af' },
+  comissionado: { bg: '#d1fae5', color: '#065f46' },
+  fixo: { bg: '#fef3c7', color: '#92400e' },
+  misto: { bg: '#ede9fe', color: '#5b21b6' },
+};
+
 // ── Seção: Barbeiros ──────────────────────────────────────────────────────────
 
+function defaultRemForm() {
+  return {
+    remunerationType: 'comissionado',
+    defaultServiceCommissionPct: 50,
+    fixedSalary: 0,
+    commissionOnCourtesy: false,
+    cardFeeDeductedFrom: 'barbershop',
+    suppliesDeductedFrom: 'barbershop',
+  };
+}
+
+function RemForm({ form, setForm }) {
+  const rt = form.remunerationType;
+  const showPct    = rt === 'comissionado' || rt === 'misto';
+  const showSalary = rt === 'fixo' || rt === 'misto';
+  const showDeduct = rt === 'comissionado' || rt === 'misto';
+
+  return (
+    <>
+      <div className="form-group">
+        <label>Tipo de remuneração</label>
+        <select className="input" value={rt}
+          onChange={(e) => setForm({ ...form, remunerationType: e.target.value })}>
+          <option value="comissionado">Comissionado (%)</option>
+          <option value="dono">Dono — recebe 100% da receita</option>
+          <option value="fixo">Salário fixo</option>
+          <option value="misto">Fixo + Comissão</option>
+        </select>
+      </div>
+
+      {showPct && (
+        <div className="form-group">
+          <label>Comissão sobre serviços (%)</label>
+          <input className="input" type="number" min="0" max="100" step="1"
+            value={form.defaultServiceCommissionPct}
+            onChange={(e) => setForm({ ...form, defaultServiceCommissionPct: Number(e.target.value) })} />
+        </div>
+      )}
+
+      {showSalary && (
+        <div className="form-group">
+          <label>Salário fixo mensal (R$)</label>
+          <input className="input" type="number" min="0" step="0.01" placeholder="0.00"
+            value={form.fixedSalary}
+            onChange={(e) => setForm({ ...form, fixedSalary: Number(e.target.value) })} />
+        </div>
+      )}
+
+      {showDeduct && (
+        <>
+          <div className="divider" style={{ margin: '10px 0' }} />
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontWeight: 600 }}>
+            Quem absorve os custos?
+          </p>
+          <div className="form-group">
+            <label>Taxa do cartão</label>
+            <select className="input" value={form.cardFeeDeductedFrom}
+              onChange={(e) => setForm({ ...form, cardFeeDeductedFrom: e.target.value })}>
+              <option value="barbershop">Barbearia (padrão)</option>
+              <option value="barber">Desconta da comissão do barbeiro</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Custo de insumos</label>
+            <select className="input" value={form.suppliesDeductedFrom}
+              onChange={(e) => setForm({ ...form, suppliesDeductedFrom: e.target.value })}>
+              <option value="barbershop">Barbearia (padrão)</option>
+              <option value="barber">Desconta da comissão do barbeiro</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input type="checkbox" id="commCourtesy" checked={form.commissionOnCourtesy}
+              onChange={(e) => setForm({ ...form, commissionOnCourtesy: e.target.checked })} />
+            <label htmlFor="commCourtesy" style={{ margin: 0, fontSize: 13 }}>
+              Pagar comissão em cortesias
+            </label>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 function BarbeirosSection() {
-  const [barbers, setBarbers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [err, setErr] = useState('');
-  const [form, setForm] = useState({ displayName: '', phone: '', email: '', password: '' });
+  const [barbers, setBarbers]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [err, setErr]             = useState('');
+
+  const [createForm, setCreateForm] = useState({
+    displayName: '', phone: '', email: '', password: '', ...defaultRemForm(),
+  });
+  const [remForm, setRemForm] = useState(defaultRemForm());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -220,24 +322,64 @@ function BarbeirosSection() {
   useEffect(() => { load(); }, [load]);
 
   function openCreate() {
-    setForm({ displayName: '', phone: '', email: '', password: '' });
+    setCreateForm({ displayName: '', phone: '', email: '', password: '', ...defaultRemForm() });
     setErr('');
-    setShowForm(true);
+    setShowCreate(true);
   }
 
-  async function handleSubmit(e) {
+  function openEdit(b) {
+    setEditTarget(b);
+    setRemForm({
+      remunerationType: b.remuneration_type || 'comissionado',
+      defaultServiceCommissionPct: Number(b.default_service_commission_pct) || 50,
+      fixedSalary: Number(b.fixed_salary) || 0,
+      commissionOnCourtesy: b.commission_on_courtesy ?? false,
+      cardFeeDeductedFrom: b.card_fee_deducted_from || 'barbershop',
+      suppliesDeductedFrom: b.supplies_deducted_from || 'barbershop',
+    });
+    setErr('');
+  }
+
+  async function handleCreate(e) {
     e.preventDefault();
     setErr('');
-    if (!form.displayName.trim()) { setErr('Informe o nome do barbeiro.'); return; }
-    if (form.email && !form.password) { setErr('Informe uma senha para o login do barbeiro.'); return; }
+    if (!createForm.displayName.trim()) { setErr('Informe o nome do barbeiro.'); return; }
+    if (createForm.email && !createForm.password) { setErr('Informe uma senha para o login.'); return; }
+    const pct = createForm.remunerationType === 'dono' ? 100 : createForm.defaultServiceCommissionPct;
     const body = {
-      displayName: form.displayName.trim(),
-      ...(form.phone ? { phone: form.phone } : {}),
-      ...(form.email ? { email: form.email, password: form.password } : {}),
+      displayName: createForm.displayName.trim(),
+      ...(createForm.phone ? { phone: createForm.phone } : {}),
+      ...(createForm.email ? { email: createForm.email, password: createForm.password } : {}),
+      remunerationType: createForm.remunerationType,
+      defaultServiceCommissionPct: pct,
+      fixedSalary: createForm.fixedSalary,
+      commissionOnCourtesy: createForm.commissionOnCourtesy,
+      cardFeeDeductedFrom: createForm.cardFeeDeductedFrom,
+      suppliesDeductedFrom: createForm.suppliesDeductedFrom,
     };
     try {
       await api.post('/barbers', body);
-      setShowForm(false);
+      setShowCreate(false);
+      load();
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
+  async function handleEditSave(e) {
+    e.preventDefault();
+    setErr('');
+    const pct = remForm.remunerationType === 'dono' ? 100 : remForm.defaultServiceCommissionPct;
+    try {
+      await api.patch(`/barbers/${editTarget.id}`, {
+        remunerationType: remForm.remunerationType,
+        defaultServiceCommissionPct: pct,
+        fixedSalary: remForm.fixedSalary,
+        commissionOnCourtesy: remForm.commissionOnCourtesy,
+        cardFeeDeductedFrom: remForm.cardFeeDeductedFrom,
+        suppliesDeductedFrom: remForm.suppliesDeductedFrom,
+      });
+      setEditTarget(null);
       load();
     } catch (e) {
       setErr(e.message);
@@ -252,6 +394,18 @@ function BarbeirosSection() {
       setErr(e.message);
     }
   }
+
+  const remChip = (rt) => {
+    const c = REM_COLORS[rt] || REM_COLORS.comissionado;
+    return (
+      <span style={{
+        fontSize: 10, padding: '2px 7px', borderRadius: 20, fontWeight: 700,
+        background: c.bg, color: c.color,
+      }}>
+        {REM_LABELS[rt] || rt}
+      </span>
+    );
+  };
 
   return (
     <div>
@@ -271,60 +425,92 @@ function BarbeirosSection() {
       ) : (
         barbers.map((b) => (
           <div key={b.id} className="card" style={{ marginBottom: 10, padding: '12px 14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 15 }}>✂️ {b.display_name}</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                  Comissão: {b.default_service_commission_pct}%
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600, fontSize: 15 }}>✂️ {b.display_name}</span>
+                  {remChip(b.remuneration_type || 'comissionado')}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                  {b.remuneration_type === 'dono' && 'Recebe 100% da receita'}
+                  {b.remuneration_type === 'comissionado' && `Comissão: ${b.default_service_commission_pct}%`}
+                  {b.remuneration_type === 'fixo' && `Fixo: ${fmtPrice(b.fixed_salary)}/mês`}
+                  {b.remuneration_type === 'misto' && `Fixo: ${fmtPrice(b.fixed_salary)} + ${b.default_service_commission_pct}%`}
+                  {!b.remuneration_type && `Comissão: ${b.default_service_commission_pct}%`}
                 </div>
               </div>
-              <span
-                onClick={() => toggleActive(b)}
-                style={{
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button onClick={() => openEdit(b)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 4 }}>
+                  ⚙️
+                </button>
+                <span onClick={() => toggleActive(b)} style={{
                   fontSize: 11, padding: '2px 8px', borderRadius: 20, cursor: 'pointer',
                   background: b.is_active ? '#d1fae5' : '#fee2e2',
                   color: b.is_active ? '#065f46' : '#991b1b',
-                }}
-              >
-                {b.is_active ? 'Ativo' : 'Inativo'}
-              </span>
+                }}>
+                  {b.is_active ? 'Ativo' : 'Inativo'}
+                </span>
+              </div>
             </div>
           </div>
         ))
       )}
 
-      {showForm && (
-        <Modal title="Novo Barbeiro" onClose={() => setShowForm(false)}>
-          <form onSubmit={handleSubmit}>
+      {/* Modal: Criar barbeiro */}
+      {showCreate && (
+        <Modal title="Novo Barbeiro" onClose={() => setShowCreate(false)}>
+          <form onSubmit={handleCreate}>
             <div className="form-group">
               <label>Nome de exibição *</label>
-              <input className="input" placeholder="Ex: Carlos" value={form.displayName}
-                onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
+              <input className="input" placeholder="Ex: Carlos" value={createForm.displayName}
+                onChange={(e) => setCreateForm({ ...createForm, displayName: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Telefone (opcional)</label>
-              <input className="input" type="tel" placeholder="11999999999" value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <input className="input" type="tel" placeholder="11999999999" value={createForm.phone}
+                onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })} />
             </div>
             <div className="divider" style={{ margin: '12px 0' }} />
             <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
-              Preencha e-mail + senha para dar acesso ao app do barbeiro (opcional):
+              E-mail + senha para acesso ao app (opcional):
             </p>
             <div className="form-group">
               <label>E-mail de acesso</label>
-              <input className="input" type="email" placeholder="barbeiro@email.com" value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <input className="input" type="email" placeholder="barbeiro@email.com" value={createForm.email}
+                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} />
             </div>
-            {form.email && (
+            {createForm.email && (
               <div className="form-group">
                 <label>Senha</label>
-                <input className="input" type="password" placeholder="mínimo 6 caracteres" value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <input className="input" type="password" placeholder="mínimo 6 caracteres" value={createForm.password}
+                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} />
               </div>
             )}
+            <div className="divider" style={{ margin: '12px 0' }} />
+            <RemForm form={createForm} setForm={setCreateForm} />
             {err && <div className="alert alert-danger">{err}</div>}
             <button className="btn btn-primary" type="submit" style={{ width: '100%', marginTop: 8 }}>
               Cadastrar barbeiro
+            </button>
+          </form>
+        </Modal>
+      )}
+
+      {/* Modal: Editar remuneração */}
+      {editTarget && (
+        <Modal title={`Remuneração — ${editTarget.display_name}`} onClose={() => setEditTarget(null)}>
+          <form onSubmit={handleEditSave}>
+            <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', marginBottom: 16 }}>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0, lineHeight: 1.6 }}>
+                Alterar regras afeta apenas <strong>novos atendimentos</strong>.
+                Atendimentos concluídos mantêm a regra que estava vigente.
+              </p>
+            </div>
+            <RemForm form={remForm} setForm={setRemForm} />
+            {err && <div className="alert alert-danger">{err}</div>}
+            <button className="btn btn-primary" type="submit" style={{ width: '100%', marginTop: 12 }}>
+              Salvar regras
             </button>
           </form>
         </Modal>
