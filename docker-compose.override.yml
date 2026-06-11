@@ -1,0 +1,51 @@
+# ============================================================================
+#  BARBER SAAS — Override de DESENVOLVIMENTO
+#  Aplicado automaticamente: `docker compose up` (sem -f).
+#  Diferenças do prod:
+#   - Vite dev server com HMR e bind-mount do código.
+#   - Backend com nodemon e código montado.
+#   - Portas expostas no host para depuração (mas a comunicação ENTRE serviços
+#     continua por nome de container; as portas são só p/ acessar do seu PC).
+# ============================================================================
+services:
+  frontend:
+    build:
+      target: dev            # estágio de dev no Dockerfile (vite)
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=/api    # mesmo host via proxy; nada de localhost hardcoded
+    ports:
+      - "5173:5173"
+
+  backend:
+    command: ["npm", "run", "dev"]   # nodemon
+    volumes:
+      - ./apps/backend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"          # acesso direto à API em dev
+
+  worker:
+    command: ["npm", "run", "worker:dev"]
+    volumes:
+      - ./apps/backend:/app
+      - /app/node_modules
+
+  postgres:
+    ports:
+      - "5432:5432"          # acessar com DBeaver/psql do host em dev
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  evolution:
+    ports:
+      - "8080:8080"          # acessar painel/QR da Evolution em dev
+
+  ollama:
+    ports:
+      - "11434:11434"

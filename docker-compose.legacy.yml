@@ -1,0 +1,52 @@
+# ============================================================================
+#  ARQUIVO LEGADO — preservado automaticamente.
+#  Era o docker-compose.yml anterior (app Streamlit em ./IACC + Evolution + Redis).
+#  Mantido apenas para referência da sua IA existente (pasta IACC).
+#  A arquitetura nova e oficial está em docker-compose.yml.
+# ============================================================================
+version: '3.8'
+
+services:
+  # 1. Seu App Streamlit (Frontend)
+  app:
+    build: ./IACC  # Pasta onde está o Dockerfile do seu app
+    container_name: barber_app
+    ports:
+      - "8501:8501"
+    environment:
+      # Aqui o App aprende a falar com a API dentro do Docker
+      - URL_API=http://evolution:8080
+    depends_on:
+      - evolution
+
+  # 2. Evolution API (Backend WhatsApp)
+  evolution:
+    image: evolutionapi/evolution-api:latest # Baixa a imagem pronta
+    container_name: barber_evolution
+    ports:
+      - "8080:8080"
+    environment:
+      # Configurações básicas da API
+      - SERVER_TYPE=http
+      - SERVER_PORT=8080
+      # Coloque sua chave aqui (tem que ser igual ao TOKEN_GLOBAL do seu código)
+      - API_KEY=12345
+      - JWT_SECRET=segredo_super_secreto
+      # Configuração do Banco de Dados (Redis)
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=redis
+      - REDIS_URI=redis://redis:6379
+      # Configurações do WhatsApp (Para não cair tanto)
+      - CONFIG_SESSION_PHONE_CLIENT=BarberPro
+      - CONFIG_SESSION_PHONE_NAME=chrome
+    volumes:
+      - ./evolution_instances:/evolution/instances # Salva os QR codes localmente
+    depends_on:
+      - redis
+
+  # 3. Redis (Banco de dados obrigatório para a Evolution API)
+  redis:
+    image: redis:latest
+    container_name: barber_redis
+    ports:
+      - "6379:6379"

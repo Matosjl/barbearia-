@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wireframes Barbearia — Operacional</title>
+<style>
+  /* ===== RESET & BASE ===== */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 10px 40px;
+  }
+
+  /* ===== ROLE SWITCHER ===== */
+  .role-switcher {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .role-btn {
+    padding: 10px 20px;
+    border: 2px solid #333;
+    background: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.1s;
+  }
+  .role-btn.active { background: #222; color: white; }
+  .role-btn:hover:not(.active) { background: #f0f0f0; }
+
+  /* ===== PHONE FRAME ===== */
+  .phone {
+    width: 375px;
+    min-height: 812px;
+    background: #fafafa;
+    border: 3px solid #222;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== STATUS BAR ===== */
+  .status-bar {
+    background: #111;
+    color: white;
+    font-size: 12px;
+    padding: 6px 16px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ===== SCREENS ===== */
+  .screen {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .screen.active { display: flex; }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: #111;
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 56px;
+  }
+  .header h1 { font-size: 18px; font-weight: 700; flex: 1; }
+  .header .badge {
+    background: #f0a500;
+    color: #111;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .btn-back {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+  }
+
+  /* ===== CONTENT AREA ===== */
+  .content { flex: 1; padding: 12px; overflow-y: auto; }
+
+  /* ===== TYPOGRAPHY ===== */
+  .label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    margin-top: 14px;
+    display: block;
+  }
+  .label:first-child { margin-top: 0; }
+
+  /* ===== INPUTS ===== */
+  .input-field {
+    width: 100%;
+    padding: 16px 14px;
+    font-size: 18px;
+    border: 2px solid #ccc;
+    border-radius: 6px;
+    background: white;
+    -webkit-appearance: none;
+  }
+  .input-field:focus { border-color: #222; outline: none; }
+  .input-sm {
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  /* ===== CHIP BUTTONS (Serviço / Pagamento) ===== */
+  .chip-group {
+    display: grid;
+    gap: 8px;
+  }
+  .chip-group.col2 { grid-template-columns: 1fr 1fr; }
+  .chip-group.col1 { grid-template-columns: 1fr; }
+
+  .chip {
+    padding: 18px 12px;
+    border: 2px solid #bbb;
+    border-radius: 8px;
+    background: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.2;
+    transition: all 0.1s;
+  }
+  .chip:hover { background: #f5f5f5; }
+  .chip.selected { border-color: #111; background: #111; color: white; }
+  .chip .price {
+    font-size: 13px;
+    font-weight: 400;
+    color: #888;
+    display: block;
+    margin-top: 2px;
+  }
+  .chip.selected .price { color: #ccc; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    width: 100%;
+    padding: 20px;
+    font-size: 18px;
+    font-weight: 700;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: 0.3px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-primary { background: #111; color: white; }
+  .btn-primary:active { background: #333; }
+  .btn-success { background: #1a7a1a; color: white; }
+  .btn-success:active { background: #155c15; }
+  .btn-danger { background: #c0392b; color: white; }
+  .btn-warning { background: #e67e00; color: white; }
+  .btn-ghost {
+    background: none;
+    border: 2px solid #333;
+    color: #333;
+  }
+  .btn-sm {
+    padding: 12px;
+    font-size: 14px;
+  }
+  .btn-disabled {
+    background: #ccc;
+    color: #888;
+    cursor: not-allowed;
+  }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .card:active { background: #f5f5f5; }
+  .card.clickable { cursor: pointer; }
+  .card-title { font-size: 17px; font-weight: 700; color: #111; }
+  .card-sub { font-size: 14px; color: #666; margin-top: 3px; }
+  .card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* ===== STATUS TAGS ===== */
+  .tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .tag-green { background: #d4edda; color: #155724; }
+  .tag-yellow { background: #fff3cd; color: #856404; }
+  .tag-red { background: #f8d7da; color: #721c24; }
+  .tag-blue { background: #d1ecf1; color: #0c5460; }
+  .tag-gray { background: #e9ecef; color: #495057; }
+
+  /* ===== QUEUE ITEM ===== */
+  .queue-item {
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .queue-item:active { background: #f0f0f0; }
+  .queue-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #111;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .queue-info { flex: 1; }
+  .queue-name { font-size: 16px; font-weight: 700; }
+  .queue-detail { font-size: 13px; color: #666; margin-top: 2px; }
+  .queue-arrow { color: #999; font-size: 18px; }
+
+  /* ===== BOTTOM NAV ===== */
+  .bottom-nav {
+    background: white;
+    border-top: 2px solid #ddd;
+    display: flex;
+    padding: 8px 0;
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 4px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-size: 11px;
+    color: #888;
+    gap: 4px;
+  }
+  .nav-item.active { color: #111; font-weight: 700; }
+  .nav-icon { font-size: 22px; line-height: 1; }
+
+  /* ===== FAB ===== */
+  .fab {
+    position: absolute;
+    bottom: 80px;
+    right: 16px;
+    width: 60px;
+    height: 60px;
+    background: #111;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10;
+  }
+
+  /* ===== DIVIDER ===== */
+  .divider {
+    height: 1px;
+    background: #eee;
+    margin: 14px 0;
+  }
+
+  /* ===== METRIC CARDS ===== */
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .metric-card {
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .metric-value { font-size: 28px; font-weight: 900; color: #111; line-height: 1; }
+  .metric-label { font-size: 12px; color: #666; margin-top: 4px; text-transform: uppercase; }
+
+  /* ===== ALERT ===== */
+  .alert {
+    padding: 12px 14px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+  .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+  .alert-warn { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+
+  /* ===== CONFIRM OVERLAY ===== */
+  .overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 20;
+    align-items: flex-end;
+  }
+  .overlay.active { display: flex; }
+  .overlay-sheet {
+    background: white;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 20px;
+  }
+  .overlay-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .overlay-sub { font-size: 14px; color: #666; margin-bottom: 20px; }
+  .overlay-actions { display: flex; gap: 10px; }
+
+  /* ===== PROGRESS STEPS ===== */
+  .steps {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 0 4px;
+  }
+  .step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    position: relative;
+    font-size: 11px;
+    color: #aaa;
+    gap: 4px;
+  }
+  .step-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 60%;
+    right: -40%;
+    height: 2px;
+    background: #ddd;
+  }
+  .step-item.done::after { background: #111; }
+  .step-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #999;
+  }
+  .step-item.active .step-circle { background: #111; color: white; }
+  .step-item.done .step-circle { background: #1a7a1a; color: white; }
+  .step-item.active { color: #111; font-weight: 700; }
+
+  /* ===== ANNOTATION ===== */
+  .annotation {
+    background: #fffde7;
+    border-left: 4px solid #f0a500;
+    padding: 10px 12px;
+    margin: 12px 0;
+    font-size: 13px;
+    color: #555;
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* ===== TIMER ===== */
+  .timer-big {
+    font-size: 48px;
+    font-weight: 900;
+    text-align: center;
+    color: #111;
+    padding: 10px 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ===== SPACER ===== */
+  .spacer { height: 12px; }
+  .spacer-lg { height: 24px; }
+
+  /* ===== LEGEND ===== */
+  .legend {
+    width: 375px;
+    margin-top: 16px;
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .legend h3 { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #333; }
+  .legend-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; font-size: 13px; color: #555; }
+  .legend-key { font-weight: 700; color: #111; min-width: 90px; }
+</style>
+</head>
+<body>
+
+<!-- ===== ROLE SWITCHER ===== -->
+<div class="role-switcher">
+  <button class="role-btn active" onclick="switchRole('barbeiro')">✂️ Barbeiro</button>
+  <button class="role-btn" onclick="switchRole('cliente')">👤 Cliente</button>
+  <button class="role-btn" onclick="switchRole('dono')">📊 Dono</button>
+</div>
+
+<!-- ===== PHONE ===== -->
+<div class="phone" id="phone">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span>📶 🔋</span>
+  </div>
+
+  <!-- ==================== BARBEIRO SCREENS ==================== -->
+
+  <!-- B1: Fila do Dia -->
+  <div class="screen active" id="b-fila">
+    <div class="header">
+      <h1>Fila de Hoje</h1>
+      <span class="badge">5 aguard.</span>
+    </div>
+    <div class="content">
+      <div class="annotation">⚡ Toque em um cliente para iniciar o atendimento ou registre um novo abaixo.</div>
+
+      <!-- Em atendimento -->
+      <span class="label">Agora</span>
+      <div class="card" onclick="navigate('b-em-atendimento')" style="border-color:#111; border-width:3px; cursor:pointer;">
+        <div class="card-row">
+          <div>
+            <div class="card-title">João Silva</div>
+            <div class="card-sub">Corte + Barba · há 18 min</div>
+          </div>
+          <div>
+            <span class="tag tag-blue">EM CURSO</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fila aguardando -->
+      <span class="label">Aguardando (5)</span>
+
+      <div class="queue-item" onclick="navigate('b-atendimento-rapido')">
+        <div class="queue-number">1</div>
+        <div class="queue-info">
+          <div class="queue-name">Carlos Mendes</div>
+          <div class="queue-detail">Corte · Agendado 10:30</div>
+        </div>
+        <div class="queue-arrow">›</div>
+      </div>
+
+      <div class="queue-item" onclick="navigate('b-atendimento-rapido')">
+        <div class="queue-number">2</div>
+        <div class="queue-info">
+          <div class="queue-name">Marcos Oliveira</div>
+          <div class="queue-detail">Barba · Encaixe</div>
+        </div>
+        <div class="queue-arrow">›</div>
+      </div>
+
+      <div class="queue-item" onclick="navigate('b-atendimento-rapido')">
+        <div class="queue-number">3</div>
+        <div class="queue-info">
+          <div class="queue-name">Lucas Ferreira</div>
+          <div class="queue-detail">Corte · Agendado 11:00</div>
+        </div>
+        <div class="queue-arrow">›</div>
+      </div>
+
+      <div class="queue-item" onclick="navigate('b-atendimento-rapido')">
+        <div class="queue-number">4</div>
+        <div class="queue-info">
+          <div class="queue-name">Pedro Rocha</div>
+          <div class="queue-detail">Corte + Barba · Agendado 11:30</div>
+        </div>
+        <div class="queue-arrow">›</div>
+      </div>
+
+      <div class="queue-item" onclick="navigate('b-atendimento-rapido')">
+        <div class="queue-number">5</div>
+        <div class="queue-info">
+          <div class="queue-name">Rafael Lima</div>
+          <div class="queue-detail">Sobrancelha · Encaixe</div>
+        </div>
+        <div class="queue-arrow">›</div>
+      </div>
+
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="navigate('b-novo-cliente')">+ Novo Cliente (encaixe / walk-in)</button>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item active" onclick="navigate('b-fila')">
+        <span class="nav-icon">📋</span>Fila
+      </button>
+      <button class="nav-item" onclick="navigate('b-historico')">
+        <span class="nav-icon">🕐</span>Histórico
+      </button>
+      <button class="nav-item" onclick="navigate('b-ganhos')">
+        <span class="nav-icon">💰</span>Ganhos
+      </button>
+    </div>
+  </div>
+
+  <!-- B2: ATENDIMENTO RÁPIDO — TELA MAIS IMPORTANTE -->
+  <div class="screen" id="b-novo-cliente">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('b-fila')">‹</button>
+      <h1>Atendimento Rápido</h1>
+    </div>
+    <div class="content">
+      <div class="annotation">⚡ Meta: registrar em menos de 10 segundos. Nome → Serviço → Pagamento → Finalizar.</div>
+
+      <span class="label">Nome do cliente *</span>
+      <input class="input-field" type="text" placeholder="Digite o nome..." autocomplete="off" id="nome-cliente">
+
+      <span class="label">Telefone (opcional)</span>
+      <input class="input-field input-sm" type="tel" placeholder="(11) 99999-9999">
+
+      <span class="label">Serviço *</span>
+      <div class="chip-group col2">
+        <button class="chip" onclick="selectChip(this,'servico')">
+          ✂️ Corte<span class="price">R$ 35</span>
+        </button>
+        <button class="chip" onclick="selectChip(this,'servico')">
+          🧔 Barba<span class="price">R$ 25</span>
+        </button>
+        <button class="chip" onclick="selectChip(this,'servico')">
+          ✂️+🧔 Corte+Barba<span class="price">R$ 55</span>
+        </button>
+        <button class="chip" onclick="selectChip(this,'servico')">
+          👁️ Sobrancelha<span class="price">R$ 15</span>
+        </button>
+      </div>
+
+      <span class="label">Pagamento *</span>
+      <div class="chip-group col2">
+        <button class="chip" onclick="selectChip(this,'pagamento')">
+          📱 PIX
+        </button>
+        <button class="chip" onclick="selectChip(this,'pagamento')">
+          💵 Dinheiro
+        </button>
+        <button class="chip" onclick="selectChip(this,'pagamento')">
+          💳 Débito
+        </button>
+        <button class="chip" onclick="selectChip(this,'pagamento')">
+          💳 Crédito
+        </button>
+      </div>
+
+      <div class="spacer-lg"></div>
+      <button class="btn btn-success" onclick="navigate('b-finalizado')">✓ FINALIZAR ATENDIMENTO</button>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- B3: Em Atendimento (cliente que já iniciou) -->
+  <div class="screen" id="b-em-atendimento">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('b-fila')">‹</button>
+      <h1>Em Atendimento</h1>
+    </div>
+    <div class="content">
+      <div class="card" style="border-color:#111; border-width:3px; text-align:center; padding:20px;">
+        <div style="font-size:13px; color:#666; text-transform:uppercase; font-weight:700;">Cliente</div>
+        <div style="font-size:28px; font-weight:900; margin:6px 0;">João Silva</div>
+        <div style="font-size:16px; color:#444;">Corte + Barba · R$ 55</div>
+        <div class="timer-big" id="timer">00:18</div>
+        <span class="tag tag-blue">EM ANDAMENTO</span>
+      </div>
+
+      <div class="spacer"></div>
+
+      <span class="label">Pagamento</span>
+      <div class="chip-group col2">
+        <button class="chip selected" onclick="selectChip(this,'pag-atual')">📱 PIX</button>
+        <button class="chip" onclick="selectChip(this,'pag-atual')">💵 Dinheiro</button>
+        <button class="chip" onclick="selectChip(this,'pag-atual')">💳 Débito</button>
+        <button class="chip" onclick="selectChip(this,'pag-atual')">💳 Crédito</button>
+      </div>
+
+      <div class="spacer-lg"></div>
+      <button class="btn btn-success" onclick="navigate('b-finalizado')">✓ CONCLUIR — R$ 55</button>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="showOverlay('overlay-cancelar')">Cancelar atendimento</button>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- B3b: Atendimento iniciado da fila -->
+  <div class="screen" id="b-atendimento-rapido">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('b-fila')">‹</button>
+      <h1>Iniciar Atendimento</h1>
+    </div>
+    <div class="content">
+      <div class="card" style="padding:16px 14px;">
+        <div style="font-size:13px; color:#666; text-transform:uppercase; font-weight:700;">Próximo da fila</div>
+        <div style="font-size:26px; font-weight:900; margin:4px 0;">Carlos Mendes</div>
+        <div style="font-size:15px; color:#444;">Corte · Agendado 10:30</div>
+      </div>
+
+      <span class="label">Confirmar serviço</span>
+      <div class="chip-group col2">
+        <button class="chip selected" onclick="selectChip(this,'serv-carlos')">✂️ Corte<span class="price">R$ 35</span></button>
+        <button class="chip" onclick="selectChip(this,'serv-carlos')">🧔 Barba<span class="price">R$ 25</span></button>
+        <button class="chip" onclick="selectChip(this,'serv-carlos')">✂️+🧔 Corte+Barba<span class="price">R$ 55</span></button>
+        <button class="chip" onclick="selectChip(this,'serv-carlos')">👁️ Sobrancelha<span class="price">R$ 15</span></button>
+      </div>
+
+      <div class="spacer-lg"></div>
+      <button class="btn btn-primary" onclick="navigate('b-em-atendimento')">▶ INICIAR ATENDIMENTO</button>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- B4: Finalizado com sucesso -->
+  <div class="screen" id="b-finalizado">
+    <div class="header">
+      <h1>Atendimento Concluído</h1>
+    </div>
+    <div class="content" style="text-align:center; padding-top:40px;">
+      <div style="font-size:64px; margin-bottom:16px;">✅</div>
+      <div style="font-size:24px; font-weight:900; color:#111; margin-bottom:8px;">Finalizado!</div>
+      <div style="font-size:16px; color:#555; margin-bottom:6px;">João Silva</div>
+      <div style="font-size:32px; font-weight:900; color:#1a7a1a; margin-bottom:4px;">R$ 55,00</div>
+      <div style="font-size:14px; color:#888; margin-bottom:32px;">PIX · 00:23 de serviço</div>
+
+      <div class="alert alert-success">💰 Comissão registrada: R$ 27,50</div>
+
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="navigate('b-fila')">Próximo Cliente →</button>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="navigate('b-novo-cliente')">+ Encaixar novo walk-in</button>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- B5: Histórico do dia -->
+  <div class="screen" id="b-historico">
+    <div class="header">
+      <h1>Histórico Hoje</h1>
+    </div>
+    <div class="content">
+      <div class="metrics">
+        <div class="metric-card">
+          <div class="metric-value">8</div>
+          <div class="metric-label">Atendimentos</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">R$380</div>
+          <div class="metric-label">Total</div>
+        </div>
+      </div>
+
+      <span class="label">Hoje — Quinta, 11 Jun</span>
+
+      <div class="card"><div class="card-row"><div><div class="card-title">Pedro Rocha</div><div class="card-sub">Corte + Barba · 09:15</div></div><div><div style="font-weight:700;">R$ 55</div><span class="tag tag-green">PIX</span></div></div></div>
+      <div class="card"><div class="card-row"><div><div class="card-title">Rafael Lima</div><div class="card-sub">Corte · 10:00</div></div><div><div style="font-weight:700;">R$ 35</div><span class="tag tag-gray">DINHEIRO</span></div></div></div>
+      <div class="card"><div class="card-row"><div><div class="card-title">João Silva</div><div class="card-sub">Corte + Barba · 10:40</div></div><div><div style="font-weight:700;">R$ 55</div><span class="tag tag-green">PIX</span></div></div></div>
+      <div class="card"><div class="card-row"><div><div class="card-title">Marcos Oliveira</div><div class="card-sub">Barba · 11:20</div></div><div><div style="font-weight:700;">R$ 25</div><span class="tag tag-blue">DÉBITO</span></div></div></div>
+      <div class="spacer"></div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="navigate('b-fila')">
+        <span class="nav-icon">📋</span>Fila
+      </button>
+      <button class="nav-item active" onclick="navigate('b-historico')">
+        <span class="nav-icon">🕐</span>Histórico
+      </button>
+      <button class="nav-item" onclick="navigate('b-ganhos')">
+        <span class="nav-icon">💰</span>Ganhos
+      </button>
+    </div>
+  </div>
+
+  <!-- B6: Ganhos do barbeiro -->
+  <div class="screen" id="b-ganhos">
+    <div class="header">
+      <h1>Meus Ganhos</h1>
+    </div>
+    <div class="content">
+      <div class="metrics">
+        <div class="metric-card">
+          <div class="metric-value" style="font-size:22px;">R$190</div>
+          <div class="metric-label">Hoje</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" style="font-size:22px;">R$1.240</div>
+          <div class="metric-label">Essa semana</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" style="font-size:22px;">8</div>
+          <div class="metric-label">Cortes hoje</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" style="font-size:22px;">50%</div>
+          <div class="metric-label">Comissão</div>
+        </div>
+      </div>
+      <div class="alert alert-info">📊 Melhor dia essa semana: Terça (R$ 320)</div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="navigate('b-fila')">
+        <span class="nav-icon">📋</span>Fila
+      </button>
+      <button class="nav-item" onclick="navigate('b-historico')">
+        <span class="nav-icon">🕐</span>Histórico
+      </button>
+      <button class="nav-item active" onclick="navigate('b-ganhos')">
+        <span class="nav-icon">💰</span>Ganhos
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== CLIENTE SCREENS ==================== -->
+
+  <!-- C1: Home cliente -->
+  <div class="screen" id="c-home">
+    <div class="header">
+      <h1>✂️ BarberSystem</h1>
+    </div>
+    <div class="content">
+      <div class="annotation">👆 Cliente agenda pelo celular. Fluxo: Serviço → Barbeiro → Horário → Confirmar.</div>
+
+      <div class="alert alert-warn">⏳ Você está na fila! Posição: <strong>#3</strong> · ~25 min de espera</div>
+
+      <span class="label">O que você quer fazer?</span>
+      <button class="btn btn-primary" onclick="navigate('c-agendar')" style="margin-bottom:10px; font-size:16px;">📅 Agendar Horário</button>
+      <button class="btn btn-ghost" onclick="navigate('c-status')" style="font-size:16px;">👁️ Ver Posição na Fila</button>
+
+      <div class="spacer-lg"></div>
+      <span class="label">Meus Próximos Agendamentos</span>
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="card-title">Hoje, 14:30</div>
+            <div class="card-sub">Corte · Barbeiro: Diego</div>
+          </div>
+          <span class="tag tag-yellow">CONFIRMADO</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="card-title">Sex, 11:00</div>
+            <div class="card-sub">Corte + Barba · Barbeiro: Diego</div>
+          </div>
+          <span class="tag tag-gray">AGENDADO</span>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item active" onclick="navigate('c-home')"><span class="nav-icon">🏠</span>Início</button>
+      <button class="nav-item" onclick="navigate('c-agendar')"><span class="nav-icon">📅</span>Agendar</button>
+      <button class="nav-item" onclick="navigate('c-status')"><span class="nav-icon">👁️</span>Fila</button>
+    </div>
+  </div>
+
+  <!-- C2: Agendamento — escolha de serviço -->
+  <div class="screen" id="c-agendar">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('c-home')">‹</button>
+      <h1>Agendar</h1>
+    </div>
+    <div class="content">
+
+      <div class="steps">
+        <div class="step-item active">
+          <div class="step-circle">1</div>
+          Serviço
+        </div>
+        <div class="step-item">
+          <div class="step-circle">2</div>
+          Barbeiro
+        </div>
+        <div class="step-item">
+          <div class="step-circle">3</div>
+          Horário
+        </div>
+        <div class="step-item">
+          <div class="step-circle">4</div>
+          Confirmar
+        </div>
+      </div>
+
+      <span class="label">Qual serviço?</span>
+      <div class="chip-group col1">
+        <button class="chip" onclick="selectChip(this,'c-servico'); navigate('c-barbeiro')">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span>✂️ Corte de Cabelo</span>
+            <span style="font-weight:400;color:#666;">R$ 35 · ~30 min</span>
+          </div>
+        </button>
+        <button class="chip" onclick="selectChip(this,'c-servico'); navigate('c-barbeiro')">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span>🧔 Barba</span>
+            <span style="font-weight:400;color:#666;">R$ 25 · ~20 min</span>
+          </div>
+        </button>
+        <button class="chip" onclick="selectChip(this,'c-servico'); navigate('c-barbeiro')">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span>✂️+🧔 Corte + Barba</span>
+            <span style="font-weight:400;color:#666;">R$ 55 · ~50 min</span>
+          </div>
+        </button>
+        <button class="chip" onclick="selectChip(this,'c-servico'); navigate('c-barbeiro')">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span>👁️ Sobrancelha</span>
+            <span style="font-weight:400;color:#666;">R$ 15 · ~15 min</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- C3: Escolha de barbeiro -->
+  <div class="screen" id="c-barbeiro">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('c-agendar')">‹</button>
+      <h1>Escolher Barbeiro</h1>
+    </div>
+    <div class="content">
+      <div class="steps">
+        <div class="step-item done"><div class="step-circle">✓</div>Serviço</div>
+        <div class="step-item active"><div class="step-circle">2</div>Barbeiro</div>
+        <div class="step-item"><div class="step-circle">3</div>Horário</div>
+        <div class="step-item"><div class="step-circle">4</div>Confirmar</div>
+      </div>
+
+      <div class="card clickable" onclick="navigate('c-horario')" style="padding:16px;">
+        <div class="card-row">
+          <div>
+            <div class="card-title">Diego Barbosa</div>
+            <div class="card-sub">1º horário livre: 11:00</div>
+          </div>
+          <span class="tag tag-green">DISPONÍVEL</span>
+        </div>
+      </div>
+      <div class="card clickable" onclick="navigate('c-horario')" style="padding:16px;">
+        <div class="card-row">
+          <div>
+            <div class="card-title">Thiago Santos</div>
+            <div class="card-sub">1º horário livre: 12:30</div>
+          </div>
+          <span class="tag tag-green">DISPONÍVEL</span>
+        </div>
+      </div>
+      <div class="card" style="padding:16px; opacity:0.5;">
+        <div class="card-row">
+          <div>
+            <div class="card-title">Mateus Costa</div>
+            <div class="card-sub">Folga hoje</div>
+          </div>
+          <span class="tag tag-gray">FOLGA</span>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="navigate('c-horario')">Tanto faz — próximo disponível</button>
+    </div>
+  </div>
+
+  <!-- C4: Escolha de horário -->
+  <div class="screen" id="c-horario">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('c-barbeiro')">‹</button>
+      <h1>Escolher Horário</h1>
+    </div>
+    <div class="content">
+      <div class="steps">
+        <div class="step-item done"><div class="step-circle">✓</div>Serviço</div>
+        <div class="step-item done"><div class="step-circle">✓</div>Barbeiro</div>
+        <div class="step-item active"><div class="step-circle">3</div>Horário</div>
+        <div class="step-item"><div class="step-circle">4</div>Confirmar</div>
+      </div>
+
+      <span class="label">Hoje, Qui 11 Jun</span>
+      <div class="chip-group col2" style="margin-bottom:12px;">
+        <button class="chip" onclick="selectChip(this,'horario'); navigate('c-confirmar')">11:00</button>
+        <button class="chip" onclick="selectChip(this,'horario'); navigate('c-confirmar')">11:30</button>
+        <button class="chip" onclick="selectChip(this,'horario'); navigate('c-confirmar')">12:00</button>
+        <button class="chip" onclick="selectChip(this,'horario'); navigate('c-confirmar')">13:00</button>
+      </div>
+
+      <span class="label">Sex 12 Jun</span>
+      <div class="chip-group col2">
+        <button class="chip" onclick="selectChip(this,'horario'); navigate('c-confirmar')">09:00</button>
+        <button class="chip" onclick="selectChip(this,'horario'); navigate('c-confirmar')">09:30</button>
+        <button class="chip" onclick="selectChip(this,'horario'); navigate('c-confirmar')">10:00</button>
+        <button class="chip" onclick="selectChip(this,'horario'); navigate('c-confirmar')">10:30</button>
+        <button class="chip" onclick="selectChip(this,'horario'); navigate('c-confirmar')">14:00</button>
+        <button class="chip" style="opacity:0.4;cursor:not-allowed;">11:00</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- C5: Confirmação -->
+  <div class="screen" id="c-confirmar">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('c-horario')">‹</button>
+      <h1>Confirmar</h1>
+    </div>
+    <div class="content">
+      <div class="steps">
+        <div class="step-item done"><div class="step-circle">✓</div>Serviço</div>
+        <div class="step-item done"><div class="step-circle">✓</div>Barbeiro</div>
+        <div class="step-item done"><div class="step-circle">✓</div>Horário</div>
+        <div class="step-item active"><div class="step-circle">4</div>Confirmar</div>
+      </div>
+
+      <div class="card" style="padding:20px; border-width:2px; border-color:#111;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div><span style="font-size:13px;color:#888;text-transform:uppercase;font-weight:700;">Serviço</span><div style="font-size:18px;font-weight:700;margin-top:2px;">Corte de Cabelo</div></div>
+          <div class="divider"></div>
+          <div><span style="font-size:13px;color:#888;text-transform:uppercase;font-weight:700;">Barbeiro</span><div style="font-size:18px;font-weight:700;margin-top:2px;">Diego Barbosa</div></div>
+          <div class="divider"></div>
+          <div><span style="font-size:13px;color:#888;text-transform:uppercase;font-weight:700;">Data e Hora</span><div style="font-size:18px;font-weight:700;margin-top:2px;">Qui, 11 Jun · 11:00</div></div>
+          <div class="divider"></div>
+          <div><span style="font-size:13px;color:#888;text-transform:uppercase;font-weight:700;">Valor</span><div style="font-size:24px;font-weight:900;margin-top:2px;">R$ 35,00</div></div>
+        </div>
+      </div>
+
+      <div class="spacer-lg"></div>
+      <button class="btn btn-success" onclick="navigate('c-agendado')">✓ CONFIRMAR AGENDAMENTO</button>
+    </div>
+  </div>
+
+  <!-- C6: Agendado com sucesso -->
+  <div class="screen" id="c-agendado">
+    <div class="header"><h1>Agendamento</h1></div>
+    <div class="content" style="text-align:center; padding-top:40px;">
+      <div style="font-size:64px; margin-bottom:16px;">✅</div>
+      <div style="font-size:24px; font-weight:900; color:#111; margin-bottom:8px;">Agendado!</div>
+      <div style="font-size:16px; color:#555; margin-bottom:4px;">Qui, 11 Jun · 11:00</div>
+      <div style="font-size:16px; color:#555; margin-bottom:24px;">Diego · Corte · R$ 35</div>
+      <div class="alert alert-info">📲 Lembrete enviado por WhatsApp para (11) 99999-9999</div>
+      <div class="spacer-lg"></div>
+      <button class="btn btn-primary" onclick="navigate('c-home')">Voltar ao Início</button>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="navigate('c-status')">Ver posição na fila</button>
+    </div>
+  </div>
+
+  <!-- C7: Status na fila -->
+  <div class="screen" id="c-status">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('c-home')">‹</button>
+      <h1>Sua Posição</h1>
+    </div>
+    <div class="content" style="text-align:center; padding-top:20px;">
+      <div style="font-size:80px; font-weight:900; color:#111; line-height:1;">3</div>
+      <div style="font-size:16px; color:#666; margin-bottom:20px;">na fila</div>
+      <div style="font-size:20px; font-weight:700; margin-bottom:4px;">~25 min de espera</div>
+      <div style="font-size:14px; color:#888; margin-bottom:24px;">Previsão: 11:05</div>
+
+      <div class="alert alert-warn">⏰ Você receberá um aviso quando for o próximo!</div>
+
+      <div style="margin-top:24px;">
+        <div class="card" style="text-align:left;">
+          <div class="card-row"><div class="card-title">João Silva</div><span class="tag tag-blue">AGORA</span></div>
+          <div class="card-sub">Corte + Barba · com Diego</div>
+        </div>
+        <div class="card" style="text-align:left; border-color:#e0e0e0;">
+          <div class="card-row"><div class="card-title">Marcos (2º)</div><span class="tag tag-yellow">AGUARD.</span></div>
+          <div class="card-sub">Barba · com Diego</div>
+        </div>
+        <div class="card" style="text-align:left; border-color:#111; border-width:2px;">
+          <div class="card-row"><div class="card-title">Você (3º)</div><span class="tag tag-gray">NA FILA</span></div>
+          <div class="card-sub">Corte · com Diego</div>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+      <button class="btn btn-danger btn-sm" onclick="showOverlay('overlay-desistir')">Sair da fila</button>
+    </div>
+  </div>
+
+  <!-- ==================== DONO SCREENS ==================== -->
+
+  <!-- D1: Dashboard do Dono -->
+  <div class="screen" id="d-home">
+    <div class="header">
+      <h1>Dashboard</h1>
+      <span class="badge">Qui 11 Jun</span>
+    </div>
+    <div class="content">
+      <div class="annotation">📊 Visão do dono: receita, fila, barbeiros — tudo em uma tela.</div>
+
+      <span class="label">Hoje</span>
+      <div class="metrics">
+        <div class="metric-card">
+          <div class="metric-value">R$620</div>
+          <div class="metric-label">Receita</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">14</div>
+          <div class="metric-label">Atendimentos</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">5</div>
+          <div class="metric-label">Na fila agora</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">3/3</div>
+          <div class="metric-label">Barbeiros ativos</div>
+        </div>
+      </div>
+
+      <span class="label">Barbeiros — Status em Tempo Real</span>
+
+      <div class="card" onclick="navigate('d-barbeiros')" style="cursor:pointer;">
+        <div class="card-row">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#1a7a1a;flex-shrink:0;"></div>
+            <div>
+              <div class="card-title">Diego Barbosa</div>
+              <div class="card-sub">Corte + Barba · João Silva · há 18 min</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:700;">5 na fila</div>
+            <div style="font-size:12px;color:#888;">R$ 275 hoje</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" onclick="navigate('d-barbeiros')" style="cursor:pointer;">
+        <div class="card-row">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#1a7a1a;flex-shrink:0;"></div>
+            <div>
+              <div class="card-title">Thiago Santos</div>
+              <div class="card-sub">Barba · Carlos · há 8 min</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:700;">3 na fila</div>
+            <div style="font-size:12px;color:#888;">R$ 220 hoje</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" onclick="navigate('d-barbeiros')" style="cursor:pointer;">
+        <div class="card-row">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#f0a500;flex-shrink:0;"></div>
+            <div>
+              <div class="card-title">Mateus Costa</div>
+              <div class="card-sub">Intervalo</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:700;">2 na fila</div>
+            <div style="font-size:12px;color:#888;">R$ 125 hoje</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <span class="label">Semana</span>
+      <div class="metrics">
+        <div class="metric-card">
+          <div class="metric-value" style="font-size:22px;">R$3.820</div>
+          <div class="metric-label">Receita</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" style="font-size:22px;">89</div>
+          <div class="metric-label">Atendimentos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item active" onclick="navigate('d-home')"><span class="nav-icon">📊</span>Dashboard</button>
+      <button class="nav-item" onclick="navigate('d-barbeiros')"><span class="nav-icon">✂️</span>Barbeiros</button>
+      <button class="nav-item" onclick="navigate('d-financeiro')"><span class="nav-icon">💰</span>Financeiro</button>
+      <button class="nav-item" onclick="navigate('d-config')"><span class="nav-icon">⚙️</span>Config</button>
+    </div>
+  </div>
+
+  <!-- D2: Barbeiros -->
+  <div class="screen" id="d-barbeiros">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('d-home')">‹</button>
+      <h1>Barbeiros</h1>
+    </div>
+    <div class="content">
+      <span class="label">Ativo (3)</span>
+
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="card-title">Diego Barbosa</div>
+            <div class="card-sub">Comissão: 50% · Desde Jan/24</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-green">ATIVO</span>
+            <div style="font-size:13px;color:#888;margin-top:4px;">14 cortes hoje</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="card-row" style="gap:8px;">
+          <button class="btn btn-ghost btn-sm" style="flex:1;">Ver atendimentos</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;">Editar comissão</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="card-title">Thiago Santos</div>
+            <div class="card-sub">Comissão: 50% · Desde Mar/24</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-green">ATIVO</span>
+            <div style="font-size:13px;color:#888;margin-top:4px;">11 cortes hoje</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="card-row" style="gap:8px;">
+          <button class="btn btn-ghost btn-sm" style="flex:1;">Ver atendimentos</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;">Editar comissão</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="card-title">Mateus Costa</div>
+            <div class="card-sub">Comissão: 45% · Desde Jun/24</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-yellow">INTERVALO</span>
+            <div style="font-size:13px;color:#888;margin-top:4px;">8 cortes hoje</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="card-row" style="gap:8px;">
+          <button class="btn btn-ghost btn-sm" style="flex:1;">Ver atendimentos</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;">Editar comissão</button>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+      <button class="btn btn-primary">+ Adicionar Barbeiro</button>
+      <div class="spacer"></div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="navigate('d-home')"><span class="nav-icon">📊</span>Dashboard</button>
+      <button class="nav-item active" onclick="navigate('d-barbeiros')"><span class="nav-icon">✂️</span>Barbeiros</button>
+      <button class="nav-item" onclick="navigate('d-financeiro')"><span class="nav-icon">💰</span>Financeiro</button>
+      <button class="nav-item" onclick="navigate('d-config')"><span class="nav-icon">⚙️</span>Config</button>
+    </div>
+  </div>
+
+  <!-- D3: Financeiro -->
+  <div class="screen" id="d-financeiro">
+    <div class="header">
+      <button class="btn-back" onclick="navigate('d-home')">‹</button>
+      <h1>Financeiro</h1>
+    </div>
+    <div class="content">
+      <span class="label">Resumo — Junho 2026</span>
+      <div class="card" style="padding:20px;">
+        <div style="text-align:center;">
+          <div style="font-size:13px;color:#888;text-transform:uppercase;font-weight:700;">Receita Bruta</div>
+          <div style="font-size:40px;font-weight:900;color:#111;line-height:1.1;">R$8.420</div>
+          <div style="font-size:14px;color:#888;">Junho até hoje (11 dias)</div>
+        </div>
+        <div class="divider"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center;">
+          <div>
+            <div style="font-size:20px;font-weight:900;color:#111;">R$4.210</div>
+            <div style="font-size:12px;color:#888;text-transform:uppercase;">Comissões pagas</div>
+          </div>
+          <div>
+            <div style="font-size:20px;font-weight:900;color:#1a7a1a;">R$4.210</div>
+            <div style="font-size:12px;color:#888;text-transform:uppercase;">Lucro líquido</div>
+          </div>
+        </div>
+      </div>
+
+      <span class="label">Por forma de pagamento</span>
+      <div class="card">
+        <div class="card-row" style="margin-bottom:8px;"><span>📱 PIX</span><strong>R$3.950 (47%)</strong></div>
+        <div class="card-row" style="margin-bottom:8px;"><span>💵 Dinheiro</span><strong>R$2.530 (30%)</strong></div>
+        <div class="card-row" style="margin-bottom:8px;"><span>💳 Débito/Crédito</span><strong>R$1.940 (23%)</strong></div>
+      </div>
+
+      <span class="label">Por barbeiro</span>
+      <div class="card">
+        <div class="card-row" style="margin-bottom:8px;"><span>Diego</span><strong>R$3.400</strong></div>
+        <div class="card-row" style="margin-bottom:8px;"><span>Thiago</span><strong>R$2.870</strong></div>
+        <div class="card-row"><span>Mateus</span><strong>R$2.150</strong></div>
+      </div>
+
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-sm">📤 Exportar relatório</button>
+      <div class="spacer"></div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="navigate('d-home')"><span class="nav-icon">📊</span>Dashboard</button>
+      <button class="nav-item" onclick="navigate('d-barbeiros')"><span class="nav-icon">✂️</span>Barbeiros</button>
+      <button class="nav-item active" onclick="navigate('d-financeiro')"><span class="nav-icon">💰</span>Financeiro</button>
+      <button class="nav-item" onclick="navigate('d-config')"><span class="nav-icon">⚙️</span>Config</button>
+    </div>
+  </div>
+
+  <!-- D4: Configurações -->
+  <div class="screen" id="d-config">
+    <div class="header">
+      <h1>Configurações</h1>
+    </div>
+    <div class="content">
+      <span class="label">Barbearia</span>
+      <div class="card">
+        <div class="card-title">✂️ BarberSystem</div>
+        <div class="card-sub">Rua das Flores, 123 · Campinas/SP</div>
+        <div class="card-sub">📱 (19) 99999-9999</div>
+      </div>
+
+      <span class="label">Horário de Funcionamento</span>
+      <div class="card">
+        <div class="card-row"><span>Seg – Sex</span><strong>08:00 – 20:00</strong></div>
+        <div class="divider"></div>
+        <div class="card-row"><span>Sábado</span><strong>08:00 – 18:00</strong></div>
+        <div class="divider"></div>
+        <div class="card-row"><span>Domingo</span><strong>Fechado</strong></div>
+      </div>
+
+      <span class="label">Serviços e Preços</span>
+      <div class="card">
+        <div class="card-row" style="margin-bottom:8px;"><span>✂️ Corte</span><strong>R$ 35</strong></div>
+        <div class="card-row" style="margin-bottom:8px;"><span>🧔 Barba</span><strong>R$ 25</strong></div>
+        <div class="card-row" style="margin-bottom:8px;"><span>✂️+🧔 Corte+Barba</span><strong>R$ 55</strong></div>
+        <div class="card-row"><span>👁️ Sobrancelha</span><strong>R$ 15</strong></div>
+        <div class="divider"></div>
+        <button class="btn btn-ghost btn-sm">Editar preços</button>
+      </div>
+
+      <div class="spacer"></div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="navigate('d-home')"><span class="nav-icon">📊</span>Dashboard</button>
+      <button class="nav-item" onclick="navigate('d-barbeiros')"><span class="nav-icon">✂️</span>Barbeiros</button>
+      <button class="nav-item" onclick="navigate('d-financeiro')"><span class="nav-icon">💰</span>Financeiro</button>
+      <button class="nav-item active" onclick="navigate('d-config')"><span class="nav-icon">⚙️</span>Config</button>
+    </div>
+  </div>
+
+  <!-- ===== OVERLAYS ===== -->
+  <div class="overlay" id="overlay-cancelar">
+    <div class="overlay-sheet">
+      <div class="overlay-title">Cancelar atendimento?</div>
+      <div class="overlay-sub">João Silva · Corte + Barba · R$ 55</div>
+      <div class="overlay-actions">
+        <button class="btn btn-ghost" style="flex:1;" onclick="hideOverlay('overlay-cancelar')">Não, voltar</button>
+        <button class="btn btn-danger" style="flex:1;" onclick="hideOverlay('overlay-cancelar'); navigate('b-fila')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-desistir">
+    <div class="overlay-sheet">
+      <div class="overlay-title">Sair da fila?</div>
+      <div class="overlay-sub">Você perderá sua posição #3 na fila.</div>
+      <div class="overlay-actions">
+        <button class="btn btn-ghost" style="flex:1;" onclick="hideOverlay('overlay-desistir')">Ficar</button>
+        <button class="btn btn-danger" style="flex:1;" onclick="hideOverlay('overlay-desistir'); navigate('c-home')">Sair</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end phone -->
+
+<!-- ===== LEGEND ===== -->
+<div class="legend">
+  <h3>📋 Fluxos disponíveis neste protótipo</h3>
+  <div class="legend-item"><span class="legend-key">✂️ Barbeiro:</span> Fila → Atendimento Rápido (walk-in) → Concluir · Fila → Iniciar da fila → Em andamento → Concluir · Histórico · Ganhos</div>
+  <div class="legend-item"><span class="legend-key">👤 Cliente:</span> Agendar (Serviço → Barbeiro → Horário → Confirmar) · Ver posição na fila · Sair da fila</div>
+  <div class="legend-item"><span class="legend-key">📊 Dono:</span> Dashboard tempo real · Barbeiros + comissões · Financeiro mensal · Configurações</div>
+  <div class="legend-item"><span class="legend-key">⚡ Tela crítica:</span> "Atendimento Rápido" (barbeiro) — acessada por "+ Novo Cliente" na fila</div>
+</div>
+
+<script>
+  // ===== STATE =====
+  let currentRole = 'barbeiro';
+  let currentScreen = 'b-fila';
+  const selections = {};
+
+  // ===== NAVIGATION =====
+  function navigate(screenId) {
+    hideAllScreens();
+    const el = document.getElementById(screenId);
+    if (el) {
+      el.classList.add('active');
+      currentScreen = screenId;
+      el.scrollTop = 0;
+    }
+  }
+
+  function hideAllScreens() {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  }
+
+  // ===== ROLE SWITCHER =====
+  function switchRole(role) {
+    currentRole = role;
+    document.querySelectorAll('.role-btn').forEach((btn, i) => {
+      const roles = ['barbeiro', 'cliente', 'dono'];
+      btn.classList.toggle('active', roles[i] === role);
+    });
+    const startScreens = { barbeiro: 'b-fila', cliente: 'c-home', dono: 'd-home' };
+    navigate(startScreens[role]);
+  }
+
+  // ===== CHIP SELECTION =====
+  function selectChip(el, group) {
+    const parent = el.closest('.chip-group');
+    parent.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selections[group] = el.textContent.trim();
+  }
+
+  // ===== OVERLAYS =====
+  function showOverlay(id) {
+    document.getElementById(id).classList.add('active');
+  }
+  function hideOverlay(id) {
+    document.getElementById(id).classList.remove('active');
+  }
+
+  // ===== TIMER (mock) =====
+  let timerSeconds = 18 * 60;
+  setInterval(() => {
+    timerSeconds++;
+    const el = document.getElementById('timer');
+    if (el) {
+      const m = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+      const s = (timerSeconds % 60).toString().padStart(2, '0');
+      el.textContent = m + ':' + s;
+    }
+  }, 1000);
+</script>
+
+</body>
+</html>

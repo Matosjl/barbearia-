@@ -1,0 +1,236 @@
+# ============================================================================
+#  BARBER SAAS — Orquestração base (produção em VPS Linux)
+#  Princípios:
+#   - Comunicação SEMPRE por NOME DE CONTAINER (postgres, redis, backend...).
+#   - Nada de localhost/IP fixo.
+#   - Backend/worker STATELESS -> escaláveis horizontalmente.
+#   - Socket.io com adapter Redis -> WebSocket funciona com N réplicas.
+#   - Migrações em serviço one-shot que roda ANTES do backend.
+#   - Healthchecks em tudo -> deploy/rolling seguro.
+#
+#  Dev: ver docker-compose.override.yml (aplicado automaticamente).
+#  Prod: docker compose -f docker-compose.yml up -d
+#  (o compose antigo foi preservado em docker-compose.legacy.yml)
+# ============================================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+networks:
+  edge:        # exposto via proxy (frontend/backend)
+    driver: bridge
+  internal:    # rede privada de dados (sem exposição externa)
+    driver: bridge
+    internal: true
+
+volumes:
+  pgdata:
+  redisdata:
+  evolution_instances:
+  evolution_store:
+  ollama_models:
+  uploads:
+  backups:
+  certs:
+
+services:
+  # -------------------------------------------------------------- Reverse proxy
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      frontend: { condition: service_started }
+      backend:  { condition: service_healthy }
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - certs:/etc/nginx/certs
+    networks: [edge]
+    logging: *default-logging
+
+  # -------------------------------------------------------------- Frontend (SPA)
+  frontend:
+    build: { context: ./apps/frontend, dockerfile: Dockerfile }
+    image: barber/frontend:latest
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ}
+    networks: [edge]
+    logging: *default-logging
+    # serve o build estático (dist) via nginx interno; o proxy faz o TLS/edge
+
+  # -------------------------------------------------------------- Backend (API + WS)
+  backend:
+    build: { context: ./apps/backend, dockerfile: Dockerfile }
+    image: barber/backend:latest
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+      migrate:  { condition: service_completed_successfully }
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - TZ=${TZ}
+      - DATABASE_URL=${DATABASE_URL}
+      # auth/signup usam o pool admin (tabelas globais + criação de barbearia)
+      - ADMIN_DATABASE_URL=postgres://${POSTGRES_ADMIN_USER}:${POSTGRES_ADMIN_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - OLLAMA_URL=${OLLAMA_URL}
+      - UPLOAD_DIR=${UPLOAD_DIR}
+    volumes:
+      - uploads:/data/uploads
+    networks: [edge, internal]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+    # escala: docker compose up -d --scale backend=3  (Redis adapter cuida do WS)
+
+  # -------------------------------------------------------------- Migrações (one-shot)
+  migrate:
+    image: barber/backend:latest
+    build: { context: ./apps/backend, dockerfile: Dockerfile }
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      # usa o usuário admin (owner) para aplicar schema/migrações (bypass RLS)
+      - ADMIN_DATABASE_URL=postgres://${POSTGRES_ADMIN_USER}:${POSTGRES_ADMIN_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - MIGRATIONS_DIR=/app/database
+    volumes:
+      - ./database:/app/database:ro    # SQL canônico (01..09) aplicado pelo runner
+    command: ["npm", "run", "db:migrate"]
+    networks: [internal]
+    logging: *default-logging
+
+  # -------------------------------------------------------------- Workers / filas
+  worker:
+    image: barber/backend:latest
+    build: { context: ./apps/backend, dockerfile: Dockerfile }
+    restart: unless-stopped
+    depends_on:
+      redis:    { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      migrate:  { condition: service_completed_successfully }
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - TZ=${TZ}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - OLLAMA_URL=${OLLAMA_URL}
+    command: ["npm", "run", "worker"]
+    networks: [internal]
+    logging: *default-logging
+    # filas: whatsapp-send, campaign-dispatch, ai-jobs, reminders, tags-recompute
+    # escala independente: docker compose up -d --scale worker=2
+
+  # -------------------------------------------------------------- PostgreSQL
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_ADMIN_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_ADMIN_PASSWORD}
+      - TZ=${TZ}
+      # usados pelo initdb para criar o role da app e o database da Evolution
+      - APP_DB_USER=${POSTGRES_USER}
+      - APP_DB_PASSWORD=${POSTGRES_PASSWORD}
+      - EVOLUTION_DB=${EVOLUTION_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  # -------------------------------------------------------------- Redis
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  # -------------------------------------------------------------- Evolution API
+  evolution:
+    image: atendai/evolution-api:v2.1.1
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    environment:
+      - SERVER_URL=${EVOLUTION_API_URL}
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgres://${POSTGRES_ADMIN_USER}:${POSTGRES_ADMIN_PASSWORD}@postgres:5432/${EVOLUTION_DB}
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/1
+      - TZ=${TZ}
+    volumes:
+      - evolution_instances:/evolution/instances
+      - evolution_store:/evolution/store
+    networks: [internal]
+    logging: *default-logging
+    # candidato a mover para VPS2 no futuro (basta trocar EVOLUTION_API_URL)
+
+  # -------------------------------------------------------------- Ollama (IA)
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+    networks: [internal]
+    # GPU opcional: descomente em VPS com GPU
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+    logging: *default-logging
+    # candidato a mover para VPS2 (trocar OLLAMA_URL)
+
+  # -------------------------------------------------------------- Backup do Postgres
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      - PGHOST=postgres
+      - PGUSER=${POSTGRES_ADMIN_USER}
+      - PGPASSWORD=${POSTGRES_ADMIN_PASSWORD}
+      - PGDATABASE=${POSTGRES_DB}
+      - BACKUP_CRON=${BACKUP_CRON}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS}
+    volumes:
+      - backups:/backups
+      - ./infra/backup/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c", "echo \"$$BACKUP_CRON /usr/local/bin/backup.sh\" > /etc/crontabs/root && crond -f -l 2"]
+    networks: [internal]
+    logging: *default-logging

@@ -1,0 +1,82 @@
+# ============================================================================
+#  Validação NATIVA do backend (sem Docker): sobe Postgres temporário, aplica
+#  migrações, sobe o backend Node real e roda o smoke test HTTP. Limpa tudo.
+#  Mesmo código que roda no container — só muda host (localhost) e processo.
+# ============================================================================
+$ErrorActionPreference = "Continue"
+$ROOT  = "C:\BarberProject"
+$BE    = "$ROOT\apps\backend"
+$RESULT= "$BE\test\backend_smoke_result.txt"
+"" | Set-Content $RESULT
+function Log($m){ $m | Tee-Object -FilePath $RESULT -Append }
+
+$PG = "C:\Program Files\PostgreSQL\17\bin"
+$env:PGOPTIONS = "-c client_min_messages=warning"
+$DATA = Join-Path $env:TEMP "barber_pg_backend"
+$PORT = 55440
+$srv = $null; $node = $null
+
+function Cleanup {
+  if ($node) { Stop-Process -Id $node.Id -Force -EA SilentlyContinue }
+  if ($srv)  { Stop-Process -Id $srv.Id  -Force -EA SilentlyContinue }
+  & "$PG\pg_ctl.exe" -D $DATA stop -m immediate 2>$null | Out-Null
+  Start-Sleep 2; Remove-Item -Recurse -Force $DATA -EA SilentlyContinue
+}
+
+try {
+  # limpeza de instância anterior
+  if (Test-Path (Join-Path $DATA "postmaster.pid")) {
+    $op=(Get-Content (Join-Path $DATA "postmaster.pid")|Select-Object -First 1); if($op){Stop-Process -Id ([int]$op) -Force -EA SilentlyContinue}
+  }
+  Get-CimInstance Win32_Process -Filter "Name='postgres.exe'" -EA SilentlyContinue | ? {$_.CommandLine -like "*barber_pg_backend*"} | % {Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue}
+  Start-Sleep 2; if(Test-Path $DATA){Remove-Item -Recurse -Force $DATA -EA SilentlyContinue}
+
+  & "$PG\initdb.exe" -D $DATA -U postgres -A trust --encoding=UTF8 | Out-Null
+  Log "initdb ok"
+  $srv = Start-Process -FilePath "$PG\postgres.exe" -ArgumentList @("-D",$DATA,"-p","$PORT") -WindowStyle Hidden -PassThru -RedirectStandardError "$DATA\e.log" -RedirectStandardOutput "$DATA\o.log"
+  for($i=0;$i -lt 30;$i++){Start-Sleep 1; & "$PG\psql.exe" -h 127.0.0.1 -p $PORT -U postgres -d postgres -c "SELECT 1;" *>$null; if($LASTEXITCODE -eq 0){break}}
+  & "$PG\createdb.exe" -h 127.0.0.1 -p $PORT -U postgres barber 2>&1 | Out-Null
+  Log "postgres pronto (porta $PORT)"
+
+  # env do backend (conexões por 127.0.0.1; barber_app via trust = sem senha)
+  $env:NODE_ENV = "production"
+  $env:PORT = "3000"
+  $env:ADMIN_DATABASE_URL = "postgres://postgres@127.0.0.1:$PORT/barber"
+  $env:APP_DATABASE_URL   = "postgres://barber_app@127.0.0.1:$PORT/barber"
+  $env:POSTGRES_USER = "barber_app"
+  $env:POSTGRES_PASSWORD = "barber_app_pass"
+  $env:MIGRATIONS_DIR = "$ROOT\database"
+  $env:JWT_ACCESS_SECRET = "test-access"
+  $env:JWT_REFRESH_SECRET = "test-refresh"
+  Remove-Item Env:REDIS_URL -EA SilentlyContinue   # opcional: roda sem redis
+
+  Log "aplicando migrações..."
+  $mig = & node "$BE\db\migrate.js" 2>&1
+  $mig | ForEach-Object { Log $_ }
+  if ($LASTEXITCODE -ne 0) { throw "migração falhou" }
+
+  Log "subindo backend..."
+  $node = Start-Process -FilePath "node" -ArgumentList @("$BE\src\index.js") -WorkingDirectory $BE -WindowStyle Hidden -PassThru -RedirectStandardOutput "$BE\test\server.log" -RedirectStandardError "$BE\test\server.err.log"
+
+  $ready = $false
+  for($i=0;$i -lt 30;$i++){
+    Start-Sleep 1
+    try { $r = Invoke-WebRequest -Uri "http://localhost:3000/health" -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { $ready=$true; break } } catch {}
+  }
+  if (-not $ready) {
+    Log "backend NAO respondeu /health. Logs:"; Get-Content "$BE\test\server.err.log" -EA SilentlyContinue | ForEach-Object { Log $_ }
+    throw "backend nao subiu"
+  }
+  Log "backend respondendo /health"
+
+  Log "rodando smoke test HTTP..."
+  $env:BASE_URL = "http://localhost:3000"
+  $out = & node "$BE\test\smoke.mjs" 2>&1
+  $out | ForEach-Object { Log $_ }
+  $code = $LASTEXITCODE
+  if ($code -ne 0) { throw "smoke test falhou (exit $code)" }
+
+  Log "`n==================== BACKEND SMOKE: TUDO PASSOU ===================="
+}
+catch { Log "ERRO: $_" }
+finally { Cleanup; Log "ambiente limpo" }
